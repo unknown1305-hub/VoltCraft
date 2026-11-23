@@ -1,0 +1,2462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoltCraft Residential - Single-Phase SLD & BOQ Designer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Electrical & UI Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Clean Blueprint Dot-Grid Background for SLD Canvas */
+        .sld-canvas-grid {
+            background-color: #f8fafc;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Drag-and-drop highlight states */
+        .drop-zone-active {
+            border-color: #2563eb !important;
+            background-color: #eff6ff !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25) !important;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-sm sticky top-0 z-40 no-print border-b border-slate-800">
+        <div class="max-w-full mx-auto px-3 sm:px-5 h-11 flex items-center justify-between gap-2">
+            <!-- Compact Brand Title -->
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="bg-amber-500 text-slate-950 w-6 h-6 rounded flex items-center justify-center">
+                    <i class="fa-solid fa-bolt text-xs"></i>
+                </div>
+                <span class="text-sm font-bold tracking-tight">VoltCraft</span>
+                <span class="hidden sm:inline-block text-[10px] font-mono-tech bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded border border-slate-700">1Φ 230V</span>
+            </div>
+
+            <!-- Compact 3 Main Navigation Tabs -->
+            <nav class="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                <button onclick="switchTab('sld')" id="tab-btn-sld" class="tab-btn flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm">
+                    <i class="fa-solid fa-diagram-project text-[11px]"></i>
+                    <span>SLD</span>
+                </button>
+                <button onclick="switchTab('cad')" id="tab-btn-cad" class="tab-btn flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-slate-300 hover:text-white transition-all">
+                    <i class="fa-solid fa-compass-drafting text-[11px]"></i>
+                    <span>CAD SLD</span>
+                </button>
+                <button onclick="switchTab('fixtures')" id="tab-btn-fixtures" class="tab-btn flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-slate-300 hover:text-white transition-all">
+                    <i class="fa-solid fa-lightbulb text-[11px]"></i>
+                    <span>Fixtures</span>
+                </button>
+                <button onclick="switchTab('boq')" id="tab-btn-boq" class="tab-btn flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-slate-300 hover:text-white transition-all">
+                    <i class="fa-solid fa-clipboard-list text-[11px]"></i>
+                    <span>BOQ</span>
+                    <span id="boq-badge" class="bg-slate-700 text-amber-400 text-[10px] font-mono-tech px-1.5 rounded-full">0</span>
+                </button>
+            </nav>
+
+            <!-- Compact Live Load Readout -->
+            <div class="hidden md:flex items-center gap-2 text-[11px] font-mono-tech bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700 shrink-0">
+                <span class="text-emerald-400">230V AC</span>
+                <span class="text-slate-600">|</span>
+                <span id="header-total-watts" class="font-semibold text-amber-400">0 W (0.00 A)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast Banner (Replaces alert()) -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex flex-col">
+
+        <!-- ===================================================================== -->
+        <!-- TAB 1: STEP-BY-STEP SLD CREATION WITH DESIGN LIBRARY                  -->
+        <!-- ===================================================================== -->
+        <section id="view-sld" class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            
+            <!-- Left Sidebar: Step-by-Step Design Library -->
+            <aside class="w-full lg:w-80 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 z-20 shadow-sm">
+                <div class="px-3.5 py-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-layer-group text-blue-600"></i> Design Library
+                        </h2>
+                        <p class="text-[11px] text-slate-500">Click <span class="font-semibold text-blue-600">+ Add</span> or drag items step-by-step</p>
+                    </div>
+                    <button onclick="loadSampleProject()" class="text-[11px] bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-2.5 py-1 rounded-md transition" title="Load a sample 2BHK SLD">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Demo
+                    </button>
+                </div>
+
+                <div class="p-3 overflow-y-auto space-y-4 max-h-[42vh] lg:max-h-[calc(100vh-88px)]">
+                    
+                    <!-- STEP 1: DB BOX -->
+                    <div class="border border-slate-200 rounded-xl p-2.5 bg-slate-50/70">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="w-4 h-4 rounded-full bg-slate-800 text-white text-[10px] flex items-center justify-center">1</span>
+                                DB Box Enclosure
+                            </span>
+                            <span class="text-[10px] text-slate-400">SPN Double Door</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <div draggable="true" ondragstart="handleDragStart(event, 'db', 8)" onclick="selectDBBox(8)"
+                                 class="p-2 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-400 rounded-lg text-center cursor-pointer transition">
+                                <div class="text-xs font-bold text-slate-800">8-Way</div>
+                                <div class="text-[10px] text-blue-600 font-medium">+ Select</div>
+                            </div>
+                            <div draggable="true" ondragstart="handleDragStart(event, 'db', 12)" onclick="selectDBBox(12)"
+                                 class="p-2 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-400 rounded-lg text-center cursor-pointer transition">
+                                <div class="text-xs font-bold text-slate-800">12-Way</div>
+                                <div class="text-[10px] text-blue-600 font-medium">+ Select</div>
+                            </div>
+                            <div draggable="true" ondragstart="handleDragStart(event, 'db', 16)" onclick="selectDBBox(16)"
+                                 class="p-2 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-400 rounded-lg text-center cursor-pointer transition">
+                                <div class="text-xs font-bold text-slate-800">16-Way</div>
+                                <div class="text-[10px] text-blue-600 font-medium">+ Select</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2: MAIN INCOMER SWITCHGEAR (DP MCB & RCCB) -->
+                    <div class="border border-slate-200 rounded-xl p-2.5 bg-slate-50/70">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] flex items-center justify-center">2</span>
+                                Main Incomer Switchgear
+                            </span>
+                            <span class="text-[10px] text-rose-600 font-semibold">Auto-Rated</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div draggable="true" ondragstart="handleDragStart(event, 'incomer', 'DP_MCB')" onclick="addIncomerGear('DP_MCB')"
+                                 class="flex items-center justify-between p-2 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 rounded-lg cursor-pointer transition">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded bg-rose-100 text-rose-700 font-bold text-[10px] flex items-center justify-center">DP</span>
+                                    <div>
+                                        <div class="text-xs font-semibold text-slate-800">DP MCB Main Isolator</div>
+                                        <div class="text-[10px] text-slate-500">Auto-sizes with total load</div>
+                                    </div>
+                                </div>
+                                <span class="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">+ Add</span>
+                            </div>
+
+                            <div draggable="true" ondragstart="handleDragStart(event, 'incomer', 'RCCB')" onclick="addIncomerGear('RCCB')"
+                                 class="flex items-center justify-between p-2 bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-lg cursor-pointer transition">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded bg-amber-100 text-amber-700 font-bold text-[10px] flex items-center justify-center">RCB</span>
+                                    <div>
+                                        <div class="text-xs font-semibold text-slate-800">2-Pole RCCB (30mA)</div>
+                                        <div class="text-[10px] text-slate-500">Earth leakage protection</div>
+                                    </div>
+                                </div>
+                                <span class="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">+ Add</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: OUTGOING SINGLE POLE (SP) MCB -->
+                    <div class="border border-slate-200 rounded-xl p-2.5 bg-slate-50/70">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center">3</span>
+                                Outgoing Circuit MCB
+                            </span>
+                            <span class="text-[10px] text-emerald-600 font-semibold">Auto-Rated</span>
+                        </div>
+                        <div draggable="true" ondragstart="handleDragStart(event, 'sp_mcb', 'SP_MCB')" onclick="addOutgoingMCB()"
+                             class="flex items-center justify-between p-2 bg-white hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-400 rounded-lg cursor-pointer transition">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px] flex items-center justify-center">SP</span>
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-800">Single Pole (SP) MCB</div>
+                                    <div class="text-[10px] text-slate-500">Supports 1, 2 or more Switch Boards</div>
+                                </div>
+                            </div>
+                            <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">+ Insert</span>
+                        </div>
+                    </div>
+
+                    <!-- STEP 4: MODULAR SWITCH BOARDS (1M to 12M) -->
+                    <div class="border border-slate-200 rounded-xl p-2.5 bg-slate-50/70">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center">4</span>
+                                Modular Switch Boards
+                            </span>
+                            <span class="text-[10px] text-slate-400">Attach to SP MCB</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-1.5" id="palette-boards">
+                            <!-- 12M, 8M, 6M, 4M, 3M, 2M, 1M -->
+                        </div>
+                    </div>
+
+                    <!-- STEP 5: FIXTURES, APPLIANCES & ACCESSORIES -->
+                    <div class="border border-slate-200 rounded-xl p-2.5 bg-slate-50/70">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="w-4 h-4 rounded-full bg-purple-600 text-white text-[10px] flex items-center justify-center">5</span>
+                                Fixtures & Appliances
+                            </span>
+                            <button onclick="switchTab('fixtures')" class="text-[10px] text-blue-600 hover:underline font-medium">View Specs →</button>
+                        </div>
+
+                        <!-- Mini Sub-Tabs inside Library for Fixtures vs Switches/Sockets -->
+                        <div class="flex bg-slate-200/70 p-0.5 rounded-lg mb-2 text-[11px]">
+                            <button onclick="toggleLibSubTab('fixtures')" id="lib-sub-fixtures" class="flex-1 py-1 rounded-md font-semibold bg-white text-slate-900 shadow-sm">Fixtures</button>
+                            <button onclick="toggleLibSubTab('accessories')" id="lib-sub-accessories" class="flex-1 py-1 rounded-md font-medium text-slate-600">Switches & Sockets</button>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-1.5" id="palette-fixtures"></div>
+                        <div class="grid grid-cols-2 gap-1.5 hidden" id="palette-accessories"></div>
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- Center/Right Workspace: Clean Step-by-Step SLD Canvas -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                
+                <!-- Compact SLD Toolbar -->
+                <div class="bg-white border-b border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-3 text-xs">
+                        <span class="font-semibold text-slate-700 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            Auto Cable & MCB Sizing
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <label for="diversity-factor" class="text-slate-500">Diversity:</label>
+                            <select id="diversity-factor" onchange="recalculateAll()" class="bg-slate-100 border border-slate-300 rounded px-1.5 py-0.5 font-mono-tech text-xs font-semibold text-slate-800">
+                                <option value="1.0">1.0</option>
+                                <option value="0.8" selected>0.8</option>
+                                <option value="0.7">0.7</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="clearSLD()" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-medium px-2.5 py-1 rounded-lg transition">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> Start Fresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interactive SLD Canvas -->
+                <div id="sld-canvas" 
+                     ondragover="handleCanvasDragOver(event)" 
+                     ondragleave="handleCanvasDragLeave(event)"
+                     ondrop="handleCanvasDrop(event)"
+                     class="flex-1 sld-canvas-grid overflow-y-auto p-4 sm:p-6 transition-all">
+                    
+                    <div id="sld-diagram-root" class="max-w-5xl mx-auto pb-16">
+                        <!-- Rendered dynamically based on Step 1 -> Step 6 state -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 1B: AUTO-GENERATED TECHNICAL CAD SCHEMATIC SLD                    -->
+        <!-- ===================================================================== -->
+        <section id="view-cad" class="hidden flex-1 flex flex-col bg-[#0f172a] text-slate-100 overflow-hidden">
+            <!-- CAD Drawing Toolbar -->
+            <div class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between gap-2 no-print">
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="font-mono-tech font-bold text-cyan-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-bezier-curve"></i>
+                        CAD SCHEMATIC VIEW (AUTO-SYNCED)
+                    </span>
+                    <span class="hidden sm:inline text-slate-400 text-[11px]">Updates automatically from your SLD Builder</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="downloadCadSVG()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-download"></i> Download SVG
+                    </button>
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> Print Schematic
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Dark CAD Viewport -->
+            <div class="flex-1 overflow-auto p-3 sm:p-6 flex items-start justify-center bg-[#0b111e]">
+                <div id="cad-svg-container" class="bg-[#111927] border border-slate-700 rounded-xl shadow-2xl p-2 overflow-x-auto max-w-full">
+                    <!-- Dynamic AutoCAD-style vector SVG injected here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 2: LIST OF FIXTURES & APPLIANCES WITH DEFAULT ELECTRICAL DETAILS   -->
+        <!-- ===================================================================== -->
+        <section id="view-fixtures" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Residential Fixtures & Appliances Library</h2>
+                    <p class="text-sm text-slate-600">Standard 230V 1-Phase ratings, power factors, module occupancy, and recommended wire/MCB specs. Edit default wattages or add directly to your SLD.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openCustomFixtureModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Add Custom Appliance
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Pills -->
+            <div class="flex flex-wrap gap-2 mb-5" id="fixture-category-filters">
+                <button onclick="filterFixtures('ALL')" class="fixture-filter-btn active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white">All Items</button>
+                <button onclick="filterFixtures('Lighting')" class="fixture-filter-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100">Lighting & Fans</button>
+                <button onclick="filterFixtures('HVAC & Water')" class="fixture-filter-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100">AC & Geyser</button>
+                <button onclick="filterFixtures('Kitchen & Utility')" class="fixture-filter-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100">Kitchen & Washing Machine</button>
+                <button onclick="filterFixtures('Sockets & Controls')" class="fixture-filter-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100">Switches, Sockets & Regulators</button>
+            </div>
+
+            <!-- Fixtures & Appliances Table / Cards -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                <th class="py-3.5 px-4">Fixture / Appliance</th>
+                                <th class="py-3.5 px-4">Category</th>
+                                <th class="py-3.5 px-4">Rated Power (W)</th>
+                                <th class="py-3.5 px-4">Power Factor</th>
+                                <th class="py-3.5 px-4">Current @ 230V</th>
+                                <th class="py-3.5 px-4">Switchboard Control & Modules</th>
+                                <th class="py-3.5 px-4">Default Cable & MCB</th>
+                                <th class="py-3.5 px-4 text-right">Quick Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fixtures-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 3: BILL OF QUANTITIES (BOQ) - QTY & SPECS ONLY (NO RATES)         -->
+        <!-- ===================================================================== -->
+        <section id="view-boq" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-xl font-bold text-slate-900">Material Bill of Quantities (BOQ)</h2>
+                        <span class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">Quantities & Technical Specs Only</span>
+                    </div>
+                    <p class="text-sm text-slate-600 mt-0.5">Automatically compiled from your SLD switchgears, modular boards, accessories, wires, and fixtures.</p>
+                </div>
+                    <!-- BOQ Tab Toolbar -->
+                    <div class="flex flex-wrap items-center gap-2 no-print">
+                    <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-600" title="Phase+Neutral (2x) runs for all circuits; Earth (1x) runs only where sockets or heavy equipment exist">
+                        <i class="fa-solid fa-circle-info text-blue-600"></i>
+                        <span>Wire Qty = <strong>2×</strong> (Phase+Neutral) + <strong>1×</strong> Earth (Only for Sockets / Heavy Loads)</span>
+                    </div>
+                    <button onclick="copyBOQToClipboard()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs sm:text-sm font-medium px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                        <i class="fa-regular fa-copy"></i> Copy Table
+                    </button>
+                    <button onclick="exportBOQCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-csv"></i> Export CSV
+                    </button>
+                    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> Print BOQ
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary KPI Strip (No Rates/Pricing) -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs text-slate-500 font-medium">Total Connected Load</div>
+                    <div id="boq-kpi-load" class="text-xl font-mono-tech font-bold text-slate-900 mt-1">0 W</div>
+                    <div id="boq-kpi-amps" class="text-xs font-mono-tech text-blue-600 mt-0.5">0.00 A @ 230V</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs text-slate-500 font-medium">Distribution & Switchgears</div>
+                    <div id="boq-kpi-switchgear" class="text-xl font-mono-tech font-bold text-rose-600 mt-1">0 Nos</div>
+                    <div class="text-xs text-slate-500 mt-0.5">DB, DP MCB, RCCB, SP MCBs</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs text-slate-500 font-medium">Switch Boards & Modules</div>
+                    <div id="boq-kpi-boards" class="text-xl font-mono-tech font-bold text-indigo-600 mt-1">0 Boards</div>
+                    <div id="boq-kpi-accessories" class="text-xs text-slate-500 mt-0.5">0 Switches / Sockets / Reg.</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs text-slate-500 font-medium">Est. FRLS Copper Wire</div>
+                    <div id="boq-kpi-cable" class="text-xl font-mono-tech font-bold text-emerald-600 mt-1">0 m</div>
+                    <div class="text-xs text-slate-500 mt-0.5">Phase + Neutral + Earth</div>
+                </div>
+            </div>
+
+            <!-- Structured BOQ Table -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table id="boq-table" class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900 text-white text-xs uppercase tracking-wider">
+                                <th class="py-3.5 px-4 w-14">Sr.</th>
+                                <th class="py-3.5 px-4">Category</th>
+                                <th class="py-3.5 px-4">Item Description</th>
+                                <th class="py-3.5 px-4">Technical Specification (IS / IEC Standard)</th>
+                                <th class="py-3.5 px-4 text-center w-24">Unit</th>
+                                <th class="py-3.5 px-4 text-right w-28">Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="boq-table-body" class="divide-y divide-slate-200 text-sm">
+                            <!-- Dynamically generated BOQ rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Custom Appliance Modal -->
+    <div id="custom-fixture-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Add Custom Appliance / Fixture</h3>
+                <button onclick="closeCustomFixtureModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="saveCustomFixture(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Appliance / Fixture Name</label>
+                    <input type="text" id="cust-name" required placeholder="e.g., Microwave Oven / Exhaust Fan" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                        <select id="cust-category" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white">
+                            <option value="Lighting">Lighting & Fans</option>
+                            <option value="HVAC & Water">HVAC & Water</option>
+                            <option value="Kitchen & Utility">Kitchen & Utility</option>
+                            <option value="Sockets & Controls">Sockets & Controls</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Wattage (Watts)</label>
+                        <input type="number" id="cust-watts" required min="1" max="10000" value="1000" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm font-mono-tech">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Power Factor (0.5 - 1.0)</label>
+                        <input type="number" id="cust-pf" step="0.05" min="0.5" max="1.0" value="0.9" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm font-mono-tech">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Modules Required on SB</label>
+                        <select id="cust-modules" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white">
+                            <option value="1_6a">1 Module (6A Switch)</option>
+                            <option value="2_reg">2 Modules (6A Switch + Regulator)</option>
+                            <option value="3_6a">3 Modules (6A Switch + 6A Socket)</option>
+                            <option value="3_16a" selected>3 Modules (16A Switch + 16A Socket)</option>
+                            <option value="0_direct">0 Modules (Direct MCB / Starter)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeCustomFixtureModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow">Save to Library</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // =========================================================================
+        // 1. ELECTRICAL CONSTANTS & DESIGN LIBRARY CATALOGS (230V AC 1-PHASE)
+        // =========================================================================
+        const VOLTAGE = 230; // Standard Single-Phase Residential Supply (Volts)
+
+        const BOARD_SIZES = [
+            { modules: 12, label: '12 Module', boxSpec: '12M GI Concealed Metal Box (1.2mm) + Modular Front Plate & Frame' },
+            { modules: 8,  label: '8 Module',  boxSpec: '8M GI Concealed Metal Box (1.2mm) + Modular Front Plate & Frame' },
+            { modules: 6,  label: '6 Module',  boxSpec: '6M GI Concealed Metal Box (1.2mm) + Modular Front Plate & Frame' },
+            { modules: 4,  label: '4 Module',  boxSpec: '4M GI Concealed Metal Box (1.2mm) + Modular Front Plate & Frame' },
+            { modules: 3,  label: '3 Module',  boxSpec: '3M GI Concealed Metal Box (1.2mm) + Modular Front Plate & Frame' },
+            { modules: 2,  label: '2 Module',  boxSpec: '2M GI Concealed Metal Box (1.2mm) + Modular Front Plate & Frame' },
+            { modules: 1,  label: '1 Module',  boxSpec: '1M GI Concealed Metal Box (1.2mm) + Modular Front Plate & Frame' }
+        ];
+
+        const ACCESSORIES_CATALOG = [
+            { id: 'sw_6a',   name: '6A 1-Way Switch',        modules: 1, watts: 0,   pf: 1.0, icon: 'fa-toggle-on',      color: 'text-blue-600',   spec: '6A, 240V AC, 1-Way Modular Flush Switch (IS 3854)' },
+            { id: 'sw_2way', name: '6A 2-Way Switch',        modules: 1, watts: 0,   pf: 1.0, icon: 'fa-code-branch',    color: 'text-indigo-600', spec: '6A, 240V AC, 2-Way Staircase/Bedroom Modular Switch (IS 3854)' },
+            { id: 'sw_16a',  name: '16A Power Switch',       modules: 1, watts: 0,   pf: 1.0, icon: 'fa-power-off',      color: 'text-rose-600',   spec: '16A, 240V AC, Heavy-Duty Modular Switch with Neon Indicator' },
+            { id: 'skt_6a',  name: '6A 3-Pin Socket',        modules: 2, watts: 100, pf: 0.9, icon: 'fa-plug',           color: 'text-emerald-600',spec: '6A, 240V AC, 3-Pin Shuttered Universal Modular Socket (IS 1293)' },
+            { id: 'skt_16a', name: '6/16A Combo Socket',     modules: 2, watts: 1000,pf: 0.9, icon: 'fa-plug-circle-bolt',color:'text-amber-600',  spec: '6/16A, 240V AC, 3-Pin Multi-Standard Power Socket with Safety Shutter' },
+            { id: 'reg_fan', name: 'Step Fan Regulator',     modules: 1, watts: 0,   pf: 1.0, icon: 'fa-gauge-high',     color: 'text-cyan-600',   spec: '100W, 240V AC, 5-Step Hum-Free Capacitor Fan Regulator (1 Module)' },
+            { id: 'dim_led', name: 'LED Light Dimmer',       modules: 1, watts: 0,   pf: 1.0, icon: 'fa-sliders',        color: 'text-purple-600', spec: '300W Max, 240V AC, Rotary Phase-Cut LED Dimmer Switch (1 Module)' },
+            { id: 'usb_chg', name: 'Dual USB Charger Port',  modules: 1, watts: 20,  pf: 0.9, icon: 'fa-charging-station',color:'text-teal-600',   spec: '5V DC 3.1A (15.5W), 240V AC Input Dual USB-A/C Modular Charger' }
+        ];
+
+        let FIXTURES_CATALOG = [
+            {
+                id: 'fan_ceiling',
+                shortName: 'Fan 1200mm',
+                name: 'Ceiling Fan (1200mm Sweep)',
+                category: 'Lighting',
+                watts: 75,
+                pf: 0.90,
+                modules: 2,
+                controlDesc: '6A 1-Way Switch (1M) + Step Regulator (1M)',
+                defaultWire: '1.5 sq.mm',
+                defaultMcb: '6A SP',
+                icon: 'fa-fan',
+                spec: '1200mm Sweep, 230V AC, 75W Ceiling Fan with Downrod & Canopy'
+            },
+            {
+                id: 'fan_900',
+                shortName: 'Fan 900mm',
+                name: 'Ceiling Fan (900mm Sweep)',
+                category: 'Lighting',
+                watts: 65,
+                pf: 0.90,
+                modules: 2,
+                controlDesc: '6A 1-Way Switch (1M) + Step Regulator (1M)',
+                defaultWire: '1.5 sq.mm',
+                defaultMcb: '6A SP',
+                icon: 'fa-fan',
+                spec: '900mm Sweep, 230V AC, 65W Ceiling Fan with Downrod & Canopy'
+            },
+            {
+                id: 'fan_600',
+                shortName: 'Fan 600mm',
+                name: 'Ceiling Fan (600mm Sweep)',
+                category: 'Lighting',
+                watts: 55,
+                pf: 0.90,
+                modules: 2,
+                controlDesc: '6A 1-Way Switch (1M) + Step Regulator (1M)',
+                defaultWire: '1.5 sq.mm',
+                defaultMcb: '6A SP',
+                icon: 'fa-fan',
+                spec: '600mm Sweep, 230V AC, 55W High-Speed Ceiling Fan'
+            },
+            {
+                id: 'light_ceiling',
+                shortName: 'Ceiling Light',
+                name: 'LED Ceiling Downlight (12W)',
+                category: 'Lighting',
+                watts: 12,
+                pf: 0.95,
+                modules: 1,
+                controlDesc: '6A 1-Way Modular Switch (1M)',
+                defaultWire: '1.5 sq.mm',
+                defaultMcb: '6A SP',
+                icon: 'fa-lightbulb',
+                spec: '12W Recessed Round LED Panel Downlight, 230V AC, >0.95 PF, 4000K/6500K'
+            },
+            {
+                id: 'light_rope',
+                shortName: 'Rope Light',
+                name: 'LED Cove / Rope Light (5m)',
+                category: 'Lighting',
+                watts: 45,
+                pf: 0.92,
+                modules: 1,
+                controlDesc: '6A 1-Way Switch / Dimmer (1M)',
+                defaultWire: '1.5 sq.mm',
+                defaultMcb: '6A SP',
+                icon: 'fa-wand-magic-sparkles',
+                spec: '9W/m Flexible IP65 LED Strip/Rope Light (5m Roll = 45W) with 230V AC Driver'
+            },
+            {
+                id: 'light_tube',
+                shortName: 'Tube Light',
+                name: 'LED Batten / Tube Light',
+                category: 'Lighting',
+                watts: 20,
+                pf: 0.95,
+                modules: 1,
+                controlDesc: '6A 1-Way Modular Switch (1M)',
+                defaultWire: '1.5 sq.mm',
+                defaultMcb: '6A SP',
+                icon: 'fa-minus',
+                spec: '20W 4-Feet Linear Polycarbonate LED Batten, 230V AC, 2000 Lumens'
+            },
+            {
+                id: 'ac_split',
+                shortName: 'Split AC 1.5TR',
+                name: 'Split Air Conditioner (1.5 Ton)',
+                category: 'HVAC & Water',
+                watts: 1650,
+                pf: 0.88,
+                modules: 2,
+                controlDesc: '20A/25A DP Switch or Direct 20A SP MCB',
+                defaultWire: '4.0 sq.mm',
+                defaultMcb: '20A SP',
+                icon: 'fa-snowflake',
+                spec: '1.5 TR Inverter Split AC, 230V AC, 1650W Rated Power with Dedicated 20A Plug/Starter'
+            },
+            {
+                id: 'ac_split_2_1',
+                shortName: 'Split AC 2.1TR',
+                name: 'Split Air Conditioner (2.1 Ton)',
+                category: 'HVAC & Water',
+                watts: 2300,
+                pf: 0.88,
+                modules: 2,
+                controlDesc: '25A/32A DP Switch or Direct 25A SP MCB',
+                defaultWire: '4.0 sq.mm',
+                defaultMcb: '25A SP',
+                icon: 'fa-snowflake',
+                spec: '2.1 TR High-Capacity Inverter Split AC, 230V AC, 2300W Rated Power with Dedicated 25A Starter'
+            },
+            {
+                id: 'geyser_water',
+                shortName: 'Geyser',
+                name: 'Storage Water Heater (Geyser 25L)',
+                category: 'HVAC & Water',
+                watts: 2000,
+                pf: 0.98,
+                modules: 3,
+                controlDesc: '16A Switch (1M) + 16A 3-Pin Socket (2M)',
+                defaultWire: '2.5 sq.mm',
+                defaultMcb: '16A SP',
+                icon: 'fa-fire-flame-curved',
+                spec: '25 Litre Vertical Storage Water Heater, 2000W Copper Heating Element, 230V AC'
+            },
+            {
+                id: 'borewell_pump',
+                shortName: 'Borewell Pump',
+                name: 'Borewell Submersible Pump (1.5 HP)',
+                category: 'HVAC & Water',
+                watts: 1100,
+                pf: 0.82,
+                modules: 2,
+                controlDesc: '20A/25A DOL Starter Panel + Dedicated MCB',
+                defaultWire: '4.0 sq.mm',
+                defaultMcb: '16A SP',
+                icon: 'fa-faucet-drip',
+                spec: '1.5 HP (1100W) Single-Phase 230V AC Borewell Submersible Water Pump with Control Panel'
+            },
+            {
+                id: 'washing_machine',
+                shortName: 'Washing Machine',
+                name: 'Automatic Washing Machine',
+                category: 'Kitchen & Utility',
+                watts: 1200,
+                pf: 0.85,
+                modules: 3,
+                controlDesc: '16A Switch (1M) + 16A 3-Pin Socket (2M)',
+                defaultWire: '2.5 sq.mm',
+                defaultMcb: '16A SP',
+                icon: 'fa-soap',
+                spec: 'Front/Top Load Washing Machine with Built-in Heater, 1200W Peak, 230V AC'
+            },
+            {
+                id: 'refrigerator',
+                shortName: 'Refrigerator',
+                name: 'Single Door Refrigerator',
+                category: 'Kitchen & Utility',
+                watts: 180,
+                pf: 0.85,
+                modules: 3,
+                controlDesc: '16A Switch (1M) + 16A 3-Pin Socket (2M)',
+                defaultWire: '2.5 sq.mm',
+                defaultMcb: '16A SP',
+                icon: 'fa-temperature-low',
+                spec: 'Direct-Cool Single Door Inverter Refrigerator, 180W Rated Compressor Load, 230V AC'
+            },
+            {
+                id: 'microwave_oven',
+                shortName: 'Microwave',
+                name: 'Microwave / Convection Oven',
+                category: 'Kitchen & Utility',
+                watts: 1400,
+                pf: 0.95,
+                modules: 3,
+                controlDesc: '16A Switch (1M) + 16A 3-Pin Socket (2M)',
+                defaultWire: '2.5 sq.mm',
+                defaultMcb: '16A SP',
+                icon: 'fa-microchip',
+                spec: '28L Convection Microwave Oven, 1400W Rated Input, 230V AC'
+            },
+            {
+                id: 'tv_unit',
+                shortName: 'TV Unit',
+                name: 'LED TV & Wi-Fi Router Unit',
+                category: 'Sockets & Controls',
+                watts: 180,
+                pf: 0.90,
+                modules: 3,
+                controlDesc: '6A Switch (1M) + 6A Socket (2M)',
+                defaultWire: '1.5 sq.mm',
+                defaultMcb: '6A SP',
+                icon: 'fa-tv',
+                spec: '55-inch Smart LED TV + Set-Top Box + Wi-Fi Router Point (180W Combined)'
+            }
+        ];
+
+        // =========================================================================
+        // 2. APPLICATION STATE (HIERARCHICAL STEP-BY-STEP SLD MODEL)
+        // =========================================================================
+        const STORAGE_KEY = 'voltcraft_residential_sld_state_v1';
+
+        let state = {
+            dbSelected: false,
+            dbWays: 12,
+            mainCableLength: 10, // Meters from Energy Meter to Main DB
+            hasDpMcb: false,
+            hasRccb: false,
+            rcbSensitivity: '30mA',
+            mcbs: [] // Each MCB: { id, name, area, cableLength, boards: [ { id, name, modules, loopLength, items: [...] } ] }
+        };
+
+        let activeDragPayload = null;
+        let selectedMcbId = null;
+        let selectedBoardId = null;
+
+        function saveAppState() {
+            try {
+                const payload = {
+                    state,
+                    selectedMcbId,
+                    selectedBoardId,
+                    diversity: document.getElementById('diversity-factor')?.value || '0.8',
+                    fixturesCatalog: FIXTURES_CATALOG
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (err) {
+                console.warn('Unable to save state to localStorage:', err);
+            }
+        }
+
+        function loadAppState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return false;
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.state) {
+                    state = {
+                        dbSelected: Boolean(parsed.state.dbSelected),
+                        dbWays: Number(parsed.state.dbWays) || 12,
+                        mainCableLength: parsed.state.mainCableLength !== undefined ? Number(parsed.state.mainCableLength) : 10,
+                        hasDpMcb: Boolean(parsed.state.hasDpMcb),
+                        hasRccb: Boolean(parsed.state.hasRccb),
+                        rcbSensitivity: parsed.state.rcbSensitivity || '30mA',
+                        mcbs: Array.isArray(parsed.state.mcbs) ? parsed.state.mcbs : []
+                    };
+                    selectedMcbId = parsed.selectedMcbId || null;
+                    selectedBoardId = parsed.selectedBoardId || null;
+                    if (Array.isArray(parsed.fixturesCatalog) && parsed.fixturesCatalog.length > 0) {
+                        FIXTURES_CATALOG = parsed.fixturesCatalog;
+                    }
+                    const divSelect = document.getElementById('diversity-factor');
+                    if (divSelect && parsed.diversity) {
+                        divSelect.value = parsed.diversity;
+                    }
+                    return true;
+                }
+            } catch (err) {
+                console.warn('Unable to load saved state from localStorage:', err);
+            }
+            return false;
+        }
+
+        // =========================================================================
+        // 3. ELECTRICAL SIZING CALCULATIONS (230V AC 1-PHASE)
+        // =========================================================================
+        function calculateCircuitSizing(watts, pf = 0.9, isHeavyPowerLoad = false, requiresEarthing = false) {
+            const safePf = pf > 0 ? pf : 0.9;
+            const current = watts > 0 ? watts / (VOLTAGE * safePf) : 0;
+
+            let mcb = '6A SP';
+            let phaseWireSqMm = '1.5';
+            let earthWireSqMm = '1.5';
+
+            if (isHeavyPowerLoad || current > 13.5) {
+                if (current > 20) {
+                    mcb = '32A SP';
+                    phaseWireSqMm = '6.0';
+                    earthWireSqMm = '4.0';
+                } else if (current > 13.5) {
+                    mcb = '25A SP';
+                    phaseWireSqMm = '4.0';
+                    earthWireSqMm = '2.5';
+                } else if (current > 9) {
+                    mcb = '20A SP';
+                    phaseWireSqMm = '4.0';
+                    earthWireSqMm = '2.5';
+                } else {
+                    mcb = '16A SP';
+                    phaseWireSqMm = '2.5';
+                    earthWireSqMm = '1.5';
+                }
+            } else if (current > 5) {
+                mcb = '10A SP';
+                phaseWireSqMm = '1.5';
+                earthWireSqMm = '1.5';
+            }
+
+            return {
+                watts,
+                current,
+                mcb,
+                phaseWireSqMm,
+                earthWireSqMm,
+                requiresEarthing
+            };
+        }
+
+        function calculateMainIncomerSizing(totalConnectedWatts) {
+            const diversity = parseFloat(document.getElementById('diversity-factor')?.value || '0.8');
+            const diversifiedWatts = totalConnectedWatts * diversity;
+            const designCurrent = diversifiedWatts > 0 ? diversifiedWatts / (VOLTAGE * 0.9) : 0;
+
+            let mainMcbLabel = '32A DP MCB';
+            let rccbLabel = '40A 2P RCCB';
+            let mainWireSqMm = '6.0';
+            let mainEarthSqMm = '4.0';
+
+            if (designCurrent > 45) {
+                mainMcbLabel = '63A DP MCB';
+                rccbLabel = '63A 2P RCCB';
+                mainWireSqMm = '16.0';
+                mainEarthSqMm = '10.0';
+            } else if (designCurrent > 28) {
+                mainMcbLabel = '40A DP MCB';
+                rccbLabel = '40A 2P RCCB';
+                mainWireSqMm = '10.0';
+                mainEarthSqMm = '6.0';
+            }
+
+            return {
+                totalConnectedWatts,
+                diversifiedWatts,
+                designCurrent,
+                mainMcbLabel,
+                rccbLabel,
+                mainWireSqMm,
+                mainEarthSqMm
+            };
+        }
+
+        function entryRequiresEarthing(entry) {
+            if (entry.kind === 'accessory') {
+                return ['skt_6a', 'skt_16a'].includes(entry.itemId);
+            }
+            const fix = FIXTURES_CATALOG.find(f => f.id === entry.itemId);
+            if (!fix) return false;
+            if (['fan_ceiling', 'fan_900', 'fan_600', 'light_ceiling', 'light_rope', 'light_tube'].includes(fix.id)) {
+                return false;
+            }
+            return fix.modules >= 3 || fix.watts >= 1000 || ['ac_split', 'ac_split_2_1', 'geyser_water', 'borewell_pump', 'washing_machine', 'refrigerator', 'microwave_oven', 'tv_unit'].includes(fix.id);
+        }
+
+        function getEntryModuleFootprint(entry) {
+            if (entry.kind === 'accessory') {
+                const acc = ACCESSORIES_CATALOG.find(a => a.id === entry.itemId);
+                return (acc ? acc.modules : 1) * entry.qty;
+            }
+            const fix = FIXTURES_CATALOG.find(f => f.id === entry.itemId);
+            if (!fix) return entry.qty;
+            const swPoints = entry.switches !== undefined ? entry.switches : entry.qty;
+            return fix.modules * swPoints;
+        }
+
+        function getEntryOutputWireSizing(entry) {
+            const fix = FIXTURES_CATALOG.find(f => f.id === entry.itemId);
+            if (!fix) return { phaseWireSqMm: '1.5', earthWireSqMm: '1.5', requiresEarthing: false };
+            const combinedWatts = fix.watts * entry.qty;
+            const isHeavy = fix.watts >= 1000 || ['ac_split', 'ac_split_2_1', 'geyser_water', 'borewell_pump', 'washing_machine', 'microwave_oven'].includes(fix.id);
+            const needsEarth = entryRequiresEarthing(entry);
+            return calculateCircuitSizing(combinedWatts, fix.pf, isHeavy, needsEarth);
+        }
+
+        function getBoardUsedModules(board) {
+            return board.items.reduce((sum, entry) => sum + getEntryModuleFootprint(entry), 0);
+        }
+
+        function getBoardElectricalStats(board) {
+            let totalWatts = 0;
+            let weightedPfSum = 0;
+            let hasHeavyPowerLoad = false;
+            let hasSocketOrEarthLoad = false;
+
+            board.items.forEach(entry => {
+                if (entryRequiresEarthing(entry)) {
+                    hasSocketOrEarthLoad = true;
+                }
+                if (entry.kind === 'accessory') {
+                    const acc = ACCESSORIES_CATALOG.find(a => a.id === entry.itemId);
+                    if (acc) {
+                        const w = acc.watts * entry.qty;
+                        totalWatts += w;
+                        weightedPfSum += w * acc.pf;
+                        if (acc.id === 'skt_16a') hasHeavyPowerLoad = true;
+                    }
+                } else {
+                    const fix = FIXTURES_CATALOG.find(f => f.id === entry.itemId);
+                    if (fix) {
+                        const w = fix.watts * entry.qty;
+                        totalWatts += w;
+                        weightedPfSum += w * fix.pf;
+                        if (fix.watts >= 1000 || ['ac_split', 'ac_split_2_1', 'geyser_water', 'borewell_pump', 'washing_machine', 'microwave_oven'].includes(fix.id)) {
+                            hasHeavyPowerLoad = true;
+                        }
+                    }
+                }
+            });
+
+            const avgPf = totalWatts > 0 ? (weightedPfSum / totalWatts) : 0.9;
+            const sizing = calculateCircuitSizing(totalWatts, avgPf, hasHeavyPowerLoad, hasSocketOrEarthLoad);
+            return {
+                ...sizing,
+                usedModules: getBoardUsedModules(board),
+                hasHeavyPowerLoad,
+                hasSocketOrEarthLoad
+            };
+        }
+
+        function getMcbElectricalStats(mcb) {
+            let totalWatts = 0;
+            let weightedPfSum = 0;
+            let hasHeavyPowerLoad = false;
+            let hasSocketOrEarthLoad = false;
+
+            mcb.boards.forEach(b => {
+                const bStats = getBoardElectricalStats(b);
+                totalWatts += bStats.watts;
+                weightedPfSum += bStats.watts * (bStats.watts > 0 ? (bStats.watts / (VOLTAGE * bStats.current)) : 0.9);
+                if (bStats.hasHeavyPowerLoad) hasHeavyPowerLoad = true;
+                if (bStats.hasSocketOrEarthLoad) hasSocketOrEarthLoad = true;
+            });
+
+            const avgPf = totalWatts > 0 ? Math.min(1, Math.max(0.7, weightedPfSum / totalWatts)) : 0.9;
+            return calculateCircuitSizing(totalWatts, avgPf, hasHeavyPowerLoad, hasSocketOrEarthLoad);
+        }
+
+        // =========================================================================
+        // 4. INITIALIZATION & DESIGN LIBRARY PALETTE RENDERING
+        // =========================================================================
+        window.onload = function() {
+            const restored = loadAppState();
+            renderPalettes();
+            renderFixturesTable('ALL');
+            recalculateAll();
+            if (restored && state.dbSelected) {
+                showToast('Restored your saved SLD project.', 'info');
+            }
+        };
+
+        function toggleLibSubTab(tab) {
+            const fixDiv = document.getElementById('palette-fixtures');
+            const accDiv = document.getElementById('palette-accessories');
+            const fixBtn = document.getElementById('lib-sub-fixtures');
+            const accBtn = document.getElementById('lib-sub-accessories');
+
+            if (tab === 'fixtures') {
+                fixDiv.classList.remove('hidden');
+                accDiv.classList.add('hidden');
+                fixBtn.className = 'flex-1 py-1 rounded-md font-semibold bg-white text-slate-900 shadow-sm';
+                accBtn.className = 'flex-1 py-1 rounded-md font-medium text-slate-600';
+            } else {
+                fixDiv.classList.add('hidden');
+                accDiv.classList.remove('hidden');
+                accBtn.className = 'flex-1 py-1 rounded-md font-semibold bg-white text-slate-900 shadow-sm';
+                fixBtn.className = 'flex-1 py-1 rounded-md font-medium text-slate-600';
+            }
+        }
+
+        function renderPalettes() {
+            const boardsEl = document.getElementById('palette-boards');
+            boardsEl.innerHTML = BOARD_SIZES.map(b => `
+                <div draggable="true" ondragstart="handleDragStart(event, 'board', ${b.modules})"
+                     onclick="quickAddBoard(${b.modules})"
+                     class="p-1.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-400 rounded-lg text-center cursor-pointer transition">
+                    <div class="text-xs font-bold text-slate-800">${b.modules}M</div>
+                    <div class="text-[9px] text-blue-600 font-medium">+ Add</div>
+                </div>
+            `).join('');
+
+            const fixEl = document.getElementById('palette-fixtures');
+            fixEl.innerHTML = FIXTURES_CATALOG.map(f => `
+                <div draggable="true" ondragstart="handleDragStart(event, 'fixture', '${f.id}')"
+                     onclick="quickAddItem('fixture', '${f.id}')"
+                     class="flex items-center gap-1.5 p-2 bg-white hover:bg-purple-50 border border-slate-200 hover:border-purple-300 rounded-lg cursor-pointer transition">
+                    <i class="fa-solid ${f.icon} text-purple-600 text-xs w-4 text-center shrink-0"></i>
+                    <span class="text-[11px] font-semibold text-slate-800 truncate">${f.shortName || f.name}</span>
+                </div>
+            `).join('');
+
+            const accEl = document.getElementById('palette-accessories');
+            accEl.innerHTML = ACCESSORIES_CATALOG.map(a => `
+                <div draggable="true" ondragstart="handleDragStart(event, 'accessory', '${a.id}')"
+                     onclick="quickAddItem('accessory', '${a.id}')"
+                     class="flex items-center gap-1.5 p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg cursor-pointer transition">
+                    <i class="fa-solid ${a.icon} ${a.color} text-xs w-4 text-center shrink-0"></i>
+                    <span class="text-[11px] font-semibold text-slate-800 truncate">${a.name}</span>
+                </div>
+            `).join('');
+        }
+
+        // =========================================================================
+        // 5. STEP-BY-STEP SLD ACTIONS (DB -> INCOMER -> SP MCB -> BOARDS -> LOADS)
+        // =========================================================================
+        function selectDBBox(ways) {
+            state.dbSelected = true;
+            state.dbWays = ways;
+            recalculateAll();
+            showToast(`Selected ${ways}-Way SPN Distribution Board.`, 'success');
+        }
+
+        function addIncomerGear(type) {
+            if (!state.dbSelected) {
+                state.dbSelected = true;
+            }
+            if (type === 'DP_MCB') {
+                state.hasDpMcb = true;
+                showToast('Added Main DP MCB Isolator (Auto-Rated).', 'success');
+            } else if (type === 'RCCB') {
+                state.hasRccb = true;
+                showToast('Added 2-Pole 30mA RCCB.', 'success');
+            }
+            recalculateAll();
+        }
+
+        function removeIncomerGear(type) {
+            if (type === 'DP_MCB') state.hasDpMcb = false;
+            if (type === 'RCCB') state.hasRccb = false;
+            recalculateAll();
+        }
+
+        function addOutgoingMCB() {
+            if (!state.dbSelected) {
+                state.dbSelected = true;
+            }
+            const usedNums = new Set(
+                state.mcbs.map(m => {
+                    const match = m.name.match(/^MCB-(\d+)$/);
+                    return match ? parseInt(match[1], 10) : null;
+                }).filter(n => n !== null)
+            );
+            let nextNum = 1;
+            while (usedNums.has(nextNum)) {
+                nextNum++;
+            }
+
+            const newMcb = {
+                id: 'mcb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                name: `MCB-${nextNum}`,
+                area: '',
+                cableLength: 12,
+                boards: []
+            };
+            state.mcbs.push(newMcb);
+            selectedMcbId = newMcb.id;
+            recalculateAll();
+            showToast(`Inserted ${newMcb.name}. Now attach 1 or more Switch Boards.`, 'success');
+            return newMcb;
+        }
+
+        function removeMCB(mcbId) {
+            state.mcbs = state.mcbs.filter(m => m.id !== mcbId);
+            if (selectedMcbId === mcbId) {
+                selectedMcbId = state.mcbs[0]?.id || null;
+            }
+            recalculateAll();
+        }
+
+        function updateMcbArea(mcbId, areaName) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            if (mcb) {
+                mcb.area = areaName.trim();
+                saveAppState();
+            }
+        }
+
+        function updateMainCableLength(val) {
+            state.mainCableLength = Math.max(0, Number(val) || 0);
+            renderBOQ();
+            saveAppState();
+        }
+
+        function updateMcbCableLength(mcbId, val) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            if (mcb) {
+                mcb.cableLength = Math.max(0, Number(val) || 0);
+                renderBOQ();
+                saveAppState();
+            }
+        }
+
+        function updateBoardLoopLength(mcbId, boardId, val) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            const board = mcb?.boards.find(b => b.id === boardId);
+            if (board) {
+                board.loopLength = Math.max(0, Number(val) || 0);
+                renderBOQ();
+                saveAppState();
+            }
+        }
+
+        function addBoardToMCB(mcbId, modules, customName = null) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            if (!mcb) return null;
+
+            const sbIndex = mcb.boards.length + 1;
+            const newBoard = {
+                id: 'sb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                name: customName || `Switch Board ${sbIndex} (${modules}M)`,
+                modules: Number(modules),
+                loopLength: sbIndex > 1 ? 6 : 0,
+                items: []
+            };
+            mcb.boards.push(newBoard);
+            selectedMcbId = mcb.id;
+            selectedBoardId = newBoard.id;
+            recalculateAll();
+            return newBoard;
+        }
+
+        function quickAddBoard(modules) {
+            if (!state.dbSelected) state.dbSelected = true;
+            let targetMcb = state.mcbs.find(m => m.id === selectedMcbId) || state.mcbs[state.mcbs.length - 1];
+            if (!targetMcb) {
+                targetMcb = addOutgoingMCB();
+            }
+            addBoardToMCB(targetMcb.id, modules);
+            showToast(`Added ${modules}M Switch Board to ${targetMcb.name}.`, 'success');
+        }
+
+        function removeBoard(mcbId, boardId) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            if (!mcb) return;
+            mcb.boards = mcb.boards.filter(b => b.id !== boardId);
+            if (selectedBoardId === boardId) {
+                selectedBoardId = mcb.boards[0]?.id || null;
+            }
+            recalculateAll();
+        }
+
+        function updateBoardName(mcbId, boardId, newName) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            const board = mcb?.boards.find(b => b.id === boardId);
+            if (board && newName.trim()) {
+                board.name = newName.trim();
+                renderBOQ();
+                saveAppState();
+            }
+        }
+
+        function addItemToBoard(mcbId, boardId, kind, itemId) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            const board = mcb?.boards.find(b => b.id === boardId);
+            if (!board) return;
+
+            selectedMcbId = mcbId;
+            selectedBoardId = boardId;
+
+            const existing = board.items.find(i => i.kind === kind && i.itemId === itemId);
+            if (existing) {
+                existing.qty += 1;
+                if (kind === 'fixture') {
+                    existing.switches = (existing.switches !== undefined ? existing.switches : existing.qty - 1) + 1;
+                }
+            } else {
+                const newEntry = {
+                    uid: 'itm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                    kind,
+                    itemId,
+                    qty: 1
+                };
+                if (kind === 'fixture') {
+                    newEntry.switches = 1;
+                    newEntry.wireLength = 5;
+                }
+                board.items.push(newEntry);
+            }
+            recalculateAll();
+        }
+
+        function quickAddItem(kind, itemId) {
+            if (!state.dbSelected) state.dbSelected = true;
+            let targetMcb = state.mcbs.find(m => m.id === selectedMcbId) || state.mcbs[state.mcbs.length - 1];
+            if (!targetMcb) {
+                targetMcb = addOutgoingMCB();
+            }
+            let targetBoard = targetMcb.boards.find(b => b.id === selectedBoardId) || targetMcb.boards[targetMcb.boards.length - 1];
+            if (!targetBoard) {
+                targetBoard = addBoardToMCB(targetMcb.id, 12);
+            }
+            addItemToBoard(targetMcb.id, targetBoard.id, kind, itemId);
+        }
+
+        function updateBoardItemQty(mcbId, boardId, uid, delta) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            const board = mcb?.boards.find(b => b.id === boardId);
+            if (!board) return;
+            const idx = board.items.findIndex(i => i.uid === uid);
+            if (idx === -1) return;
+
+            const item = board.items[idx];
+            item.qty += delta;
+            if (item.qty <= 0) {
+                board.items.splice(idx, 1);
+            } else if (item.kind === 'fixture') {
+                const curSw = item.switches !== undefined ? item.switches : item.qty;
+                if (delta > 0) {
+                    item.switches = curSw + 1;
+                } else if (curSw > item.qty) {
+                    item.switches = item.qty;
+                }
+            }
+            recalculateAll();
+        }
+
+        function updateBoardItemSwitches(mcbId, boardId, uid, delta) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            const board = mcb?.boards.find(b => b.id === boardId);
+            if (!board) return;
+            const item = board.items.find(i => i.uid === uid);
+            if (!item || item.kind !== 'fixture') return;
+
+            const currentSw = item.switches !== undefined ? item.switches : item.qty;
+            const nextSw = Math.max(1, Math.min(item.qty, currentSw + delta));
+            item.switches = nextSw;
+            recalculateAll();
+        }
+
+        function updateBoardItemWireLength(mcbId, boardId, uid, val) {
+            const mcb = state.mcbs.find(m => m.id === mcbId);
+            const board = mcb?.boards.find(b => b.id === boardId);
+            if (!board) return;
+            const item = board.items.find(i => i.uid === uid);
+            if (!item) return;
+
+            item.wireLength = Math.max(0, Number(val) || 0);
+            renderBOQ();
+            saveAppState();
+        }
+
+        // =========================================================================
+        // 6. DRAG AND DROP HANDLERS
+        // =========================================================================
+        function handleDragStart(event, type, payload) {
+            activeDragPayload = { type, payload };
+            event.dataTransfer.setData('text/plain', JSON.stringify(activeDragPayload));
+        }
+
+        function handleCanvasDragOver(event) {
+            event.preventDefault();
+            document.getElementById('sld-canvas').classList.add('drop-zone-active');
+        }
+
+        function handleCanvasDragLeave(event) {
+            document.getElementById('sld-canvas').classList.remove('drop-zone-active');
+        }
+
+        function handleCanvasDrop(event) {
+            event.preventDefault();
+            document.getElementById('sld-canvas').classList.remove('drop-zone-active');
+            if (!activeDragPayload) return;
+
+            const { type, payload } = activeDragPayload;
+            if (type === 'db') selectDBBox(Number(payload));
+            else if (type === 'incomer') addIncomerGear(payload);
+            else if (type === 'sp_mcb') addOutgoingMCB();
+            else if (type === 'board') quickAddBoard(Number(payload));
+            else if (type === 'fixture' || type === 'accessory') quickAddItem(type, payload);
+            activeDragPayload = null;
+        }
+
+        function handleMcbDrop(event, mcbId) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('sld-canvas').classList.remove('drop-zone-active');
+            if (!activeDragPayload) return;
+
+            const { type, payload } = activeDragPayload;
+            if (type === 'board') {
+                addBoardToMCB(mcbId, Number(payload));
+                showToast(`Attached ${payload}M Switch Board.`, 'success');
+            } else if (type === 'fixture' || type === 'accessory') {
+                const mcb = state.mcbs.find(m => m.id === mcbId);
+                let targetBoard = mcb?.boards[mcb.boards.length - 1];
+                if (!targetBoard) targetBoard = addBoardToMCB(mcbId, 12);
+                addItemToBoard(mcbId, targetBoard.id, type, payload);
+            }
+            activeDragPayload = null;
+        }
+
+        function handleBoardDrop(event, mcbId, boardId) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('sld-canvas').classList.remove('drop-zone-active');
+            if (!activeDragPayload) return;
+
+            const { type, payload } = activeDragPayload;
+            if (type === 'fixture' || type === 'accessory') {
+                addItemToBoard(mcbId, boardId, type, payload);
+            } else if (type === 'board') {
+                addBoardToMCB(mcbId, Number(payload));
+            }
+            activeDragPayload = null;
+        }
+
+        // =========================================================================
+        // 7. MASTER RECALCULATION & STEP-BY-STEP SLD RENDERER
+        // =========================================================================
+        function recalculateAll() {
+            let totalWatts = 0;
+            state.mcbs.forEach(mcb => {
+                totalWatts += getMcbElectricalStats(mcb).watts;
+            });
+
+            const totalAmps = totalWatts / (VOLTAGE * 0.9);
+            document.getElementById('header-total-watts').textContent = `${totalWatts.toLocaleString()} W (${totalAmps.toFixed(2)} A)`;
+
+            renderSLDCanvas();
+            renderCadSchematic();
+            renderBOQ();
+            saveAppState();
+        }
+
+        // =========================================================================
+        // 7B. AUTOCAD-STYLE VECTOR SCHEMATIC SLD GENERATOR
+        // =========================================================================
+        function escapeXml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function renderCadSchematic() {
+            const container = document.getElementById('cad-svg-container');
+            if (!container) return;
+
+            if (!state.dbSelected) {
+                container.innerHTML = `
+                    <div class="p-10 text-center max-w-md mx-auto">
+                        <i class="fa-solid fa-compass-drafting text-cyan-400 text-3xl mb-3"></i>
+                        <h3 class="text-sm font-mono-tech font-bold text-white uppercase">No SLD Layout Yet</h3>
+                        <p class="text-xs text-slate-400 mt-1 mb-4">Select a DB Box and add MCBs / Switch Boards in the <strong>SLD</strong> tab to automatically generate the CAD schematic.</p>
+                        <button onclick="switchTab('sld')" class="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold">Go to SLD Builder</button>
+                    </div>
+                `;
+                return;
+            }
+
+            let totalWatts = 0;
+            state.mcbs.forEach(m => { totalWatts += getMcbElectricalStats(m).watts; });
+            const mainSizing = calculateMainIncomerSizing(totalWatts);
+
+            // Collect all Switch Boards across all MCBs for bottom row layout
+            const allBoards = [];
+            state.mcbs.forEach((mcb, mIdx) => {
+                const mStats = getMcbElectricalStats(mcb);
+                mcb.boards.forEach((board, bIdx) => {
+                    // Build switch columns inside this Switch Board
+                    const cols = [];
+                    let ptCounter = 1;
+                    board.items.forEach(entry => {
+                        const meta = entry.kind === 'accessory'
+                            ? ACCESSORIES_CATALOG.find(a => a.id === entry.itemId)
+                            : FIXTURES_CATALOG.find(f => f.id === entry.itemId);
+                        if (!meta) return;
+
+                        const rawName = entry.kind === 'fixture' ? (meta.shortName || meta.name) : meta.name;
+                        const labelText = entry.qty > 1 ? `${rawName.toUpperCase()} (${entry.qty})` : rawName.toUpperCase();
+                        const swCount = entry.kind === 'fixture' ? (entry.switches !== undefined ? entry.switches : entry.qty) : entry.qty;
+                        const isSocket = entryRequiresEarthing(entry);
+
+                        if (entry.kind === 'fixture' && swCount < entry.qty) {
+                            // Multiple fixtures ganged onto fewer switches: show grouped switch with fan-out
+                            cols.push({
+                                code: `${bIdx + 1}.${ptCounter++}`,
+                                label: labelText,
+                                isSocket,
+                                grouped: entry.qty
+                            });
+                        } else {
+                            const count = Math.max(1, swCount);
+                            for (let k = 0; k < count; k++) {
+                                const singleLabel = (count > 1 && entry.qty === count)
+                                    ? rawName.toUpperCase()
+                                    : labelText;
+                                cols.push({
+                                    code: `${bIdx + 1}.${ptCounter++}`,
+                                    label: singleLabel,
+                                    isSocket,
+                                    grouped: 1
+                                });
+                            }
+                        }
+                    });
+
+                    if (cols.length === 0) {
+                        cols.push({ code: `${bIdx + 1}.1`, label: 'SPARE', isSocket: false, grouped: 1 });
+                    }
+
+                    allBoards.push({
+                        mcbIndex: mIdx,
+                        mcb,
+                        mStats,
+                        board,
+                        bIdx,
+                        cols,
+                        width: Math.max(120, cols.length * 38 + 32)
+                    });
+                });
+            });
+
+            const mcbSpacing = 92;
+            const leftMargin = 80;
+            const totalBoardRowWidth = allBoards.reduce((sum, b) => sum + b.width + 36, 0);
+            const minDbWidth = Math.max(460, state.mcbs.length * mcbSpacing + 140);
+            const canvasWidth = Math.max(820, minDbWidth + 160, totalBoardRowWidth + 160);
+
+            // Y Coordinates for CAD Layout
+            const incomerTopY = 26;
+            const dbTopY = 128;
+            const busbarY = 165;
+            const spMcbY = 212;
+            const dbBottomY = 278;
+            const directLabelY = 315;
+            const routingStartY = 320;
+            const routingBandStep = 14;
+            const sbTopY = routingStartY + Math.max(2, allBoards.length) * routingBandStep + 48;
+            const sbHeight = 86;
+            const sbBottomY = sbTopY + sbHeight;
+            const loadArrowTipY = sbBottomY + 46;
+            const canvasHeight = loadArrowTipY + 150;
+
+            const dbLeftX = leftMargin;
+            const dbWidth = Math.max(minDbWidth, canvasWidth - leftMargin * 2);
+            const dbCenterX = dbLeftX + dbWidth / 2;
+
+            let svg = `<svg id="cad-sld-svg" xmlns="http://www.w3.org/2000/svg" width="${canvasWidth}" height="${canvasHeight}" viewBox="0 0 ${canvasWidth} ${canvasHeight}" style="font-family: 'JetBrains Mono', monospace; background: #111927;">`;
+
+            // Defs for crisp CAD arrowheads
+            svg += `
+                <defs>
+                    <marker id="cad-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#e2e8f0" />
+                    </marker>
+                </defs>
+            `;
+
+            // Title Block (Top Right)
+            svg += `
+                <rect x="${canvasWidth - 265}" y="14" width="245" height="62" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+                <text x="${canvasWidth - 255}" y="31" fill="#38bdf8" font-size="10" font-weight="bold">SINGLE LINE DIAGRAM (1Φ 230V AC)</text>
+                <text x="${canvasWidth - 255}" y="46" fill="#cbd5e1" font-size="9">DB: ${state.dbWays}-WAY SPN | LOAD: ${totalWatts}W (${mainSizing.designCurrent.toFixed(1)}A)</text>
+                <text x="${canvasWidth - 255}" y="61" fill="#94a3b8" font-size="9">INCOMER: ${mainSizing.mainWireSqMm}mm² 2C + ${mainSizing.mainEarthSqMm}mm² E (${state.mainCableLength}m)</text>
+            `;
+
+            // 1. INCOMER LINE & MAIN SWITCHGEAR ABOVE DB
+            svg += `<line x1="${dbCenterX}" y1="${incomerTopY}" x2="${dbCenterX}" y2="${incomerTopY + 24}" stroke="#e2e8f0" stroke-width="1.6" marker-end="url(#cad-arrow)"/>`;
+            svg += `<text x="${dbCenterX - 12}" y="${incomerTopY + 12}" fill="#94a3b8" font-size="9" text-anchor="end">FROM ENERGY METER</text>`;
+
+            let curY = incomerTopY + 24;
+            if (state.hasDpMcb) {
+                svg += `<line x1="${dbCenterX}" y1="${curY}" x2="${dbCenterX}" y2="${curY + 8}" stroke="#e2e8f0" stroke-width="1.6"/>`;
+                svg += `<path d="M ${dbCenterX} ${curY + 8} A 11 11 0 1 1 ${dbCenterX} ${curY + 30}" fill="none" stroke="#f8fafc" stroke-width="1.8"/>`;
+                svg += `<circle cx="${dbCenterX}" cy="${curY + 8}" r="2.2" fill="#f8fafc"/>`;
+                svg += `<circle cx="${dbCenterX}" cy="${curY + 30}" r="2.2" fill="#f8fafc"/>`;
+                svg += `<text x="${dbCenterX - 16}" y="${curY + 17}" fill="#f8fafc" font-size="9" font-weight="bold" text-anchor="end">${escapeXml(mainSizing.mainMcbLabel)}</text>`;
+                svg += `<text x="${dbCenterX - 16}" y="${curY + 28}" fill="#94a3b8" font-size="8" text-anchor="end">MAIN ISOLATOR</text>`;
+                curY += 30;
+            }
+
+            if (state.hasRccb) {
+                svg += `<line x1="${dbCenterX}" y1="${curY}" x2="${dbCenterX}" y2="${curY + 8}" stroke="#e2e8f0" stroke-width="1.6"/>`;
+                svg += `<path d="M ${dbCenterX} ${curY + 8} A 11 11 0 1 1 ${dbCenterX} ${curY + 30}" fill="none" stroke="#fbbf24" stroke-width="1.8"/>`;
+                svg += `<circle cx="${dbCenterX}" cy="${curY + 8}" r="2.2" fill="#fbbf24"/>`;
+                svg += `<circle cx="${dbCenterX}" cy="${curY + 30}" r="2.2" fill="#fbbf24"/>`;
+                svg += `<text x="${dbCenterX + 16}" y="${curY + 17}" fill="#fbbf24" font-size="9" font-weight="bold" text-anchor="start">${escapeXml(mainSizing.rccbLabel)}</text>`;
+                svg += `<text x="${dbCenterX + 16}" y="${curY + 28}" fill="#94a3b8" font-size="8" text-anchor="start">30mA ELCB/RCCB</text>`;
+                curY += 30;
+            }
+
+            // Connect Incomer down to Main Busbar
+            svg += `<line x1="${dbCenterX}" y1="${curY}" x2="${dbCenterX}" y2="${busbarY}" stroke="#e2e8f0" stroke-width="1.8"/>`;
+
+            // 2. DASHED MAIN DISTRIBUTION BOARD ENCLOSURE
+            svg += `<rect x="${dbLeftX}" y="${dbTopY}" width="${dbWidth}" height="${dbBottomY - dbTopY}" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="10 5"/>`;
+            svg += `<text x="${dbLeftX + 12}" y="${dbTopY + 15}" fill="#38bdf8" font-size="10" font-weight="bold">${state.dbWays}-WAY SPN DISTRIBUTION BOARD</text>`;
+
+            // Compute X positions for each SP MCB along the busbar
+            const mcbCount = Math.max(1, state.mcbs.length);
+            const totalMcbSpan = (mcbCount - 1) * mcbSpacing;
+            const firstMcbX = Math.max(dbLeftX + 70, dbCenterX - totalMcbSpan / 2);
+            const lastMcbX = state.mcbs.length > 0 ? firstMcbX + (state.mcbs.length - 1) * mcbSpacing : dbCenterX;
+
+            const busStartX = Math.min(dbCenterX - 40, firstMcbX - 25);
+            const busEndX = Math.max(dbCenterX + 40, lastMcbX + 25);
+            svg += `<line x1="${busStartX}" y1="${busbarY}" x2="${busEndX}" y2="${busbarY}" stroke="#f8fafc" stroke-width="2.6"/>`;
+
+            // Map each board to its target X coordinate at the bottom row
+            let curBoardX = Math.max(60, (canvasWidth - totalBoardRowWidth) / 2);
+            allBoards.forEach(bObj => {
+                bObj.x = curBoardX;
+                bObj.centerX = curBoardX + bObj.width / 2;
+                curBoardX += bObj.width + 36;
+            });
+
+            let routeTrackIndex = 0;
+
+            // 3. DRAW EACH SP MCB ON BUSBAR & ITS FEEDER ROUTING
+            state.mcbs.forEach((mcb, mIdx) => {
+                const mx = firstMcbX + mIdx * mcbSpacing;
+                const mStats = getMcbElectricalStats(mcb);
+                const ratingShort = mStats.mcb.replace(' SP', '');
+
+                // Drop from busbar to SP MCB
+                svg += `<line x1="${mx}" y1="${busbarY}" x2="${mx}" y2="${spMcbY}" stroke="#e2e8f0" stroke-width="1.5"/>`;
+                svg += `<circle cx="${mx}" cy="${busbarY}" r="2.5" fill="#f8fafc"/>`;
+
+                // Semicircular SP MCB Breaker Arc
+                svg += `<path d="M ${mx} ${spMcbY} A 11 11 0 1 1 ${mx} ${spMcbY + 22}" fill="none" stroke="#f8fafc" stroke-width="1.8"/>`;
+                svg += `<circle cx="${mx}" cy="${spMcbY}" r="2" fill="#f8fafc"/>`;
+                svg += `<circle cx="${mx}" cy="${spMcbY + 22}" r="2" fill="#f8fafc"/>`;
+
+                // Left label: 10A / SP / MCB
+                svg += `<text x="${mx - 14}" y="${spMcbY + 6}" fill="#e2e8f0" font-size="8.5" font-weight="bold" text-anchor="end">${escapeXml(ratingShort)}</text>`;
+                svg += `<text x="${mx - 14}" y="${spMcbY + 15}" fill="#cbd5e1" font-size="8" text-anchor="end">SP</text>`;
+                svg += `<text x="${mx - 14}" y="${spMcbY + 24}" fill="#94a3b8" font-size="8" text-anchor="end">${escapeXml(mcb.name)}</text>`;
+
+                const attachedBoards = allBoards.filter(b => b.mcbIndex === mIdx);
+
+                if (attachedBoards.length === 0) {
+                    // Direct outgoing stub below DB (like P4.1 BATH / P4.2 KITCHEN in CAD reference)
+                    svg += `<line x1="${mx}" y1="${spMcbY + 22}" x2="${mx}" y2="${directLabelY}" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#cad-arrow)"/>`;
+                    const areaText = (mcb.area || `${mcb.name} SPARE`).toUpperCase();
+                    svg += `<text x="${mx}" y="${directLabelY + 12}" fill="#cbd5e1" font-size="8.5" text-anchor="end" transform="rotate(-90 ${mx} ${directLabelY + 12})">${escapeXml(areaText)}</text>`;
+                } else {
+                    // Route orthogonal feeder line from SP MCB down to Switch Board(s)
+                    const firstTarget = attachedBoards[0];
+                    const turnY = routingStartY + routeTrackIndex * routingBandStep;
+                    routeTrackIndex++;
+
+                    svg += `<polyline points="${mx},${spMcbY + 22} ${mx},${turnY} ${firstTarget.centerX},${turnY} ${firstTarget.centerX},${sbTopY}" fill="none" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#cad-arrow)"/>`;
+
+                    // Feeder cable spec & area tag near DB exit
+                    const cableTag = `${mStats.phaseWireSqMm}mm² (${mcb.cableLength || 12}m)`;
+                    svg += `<text x="${mx + 4}" y="${dbBottomY + 14}" fill="#38bdf8" font-size="8">${escapeXml(cableTag)}</text>`;
+                    if (mcb.area) {
+                        svg += `<text x="${mx + 4}" y="${dbBottomY + 24}" fill="#94a3b8" font-size="8">${escapeXml(mcb.area.toUpperCase())}</text>`;
+                    }
+
+                    // If 2 or more Switch Boards are looped on the same SP MCB, draw horizontal loop bus between them
+                    for (let i = 1; i < attachedBoards.length; i++) {
+                        const prevSb = attachedBoards[i - 1];
+                        const nextSb = attachedBoards[i];
+                        const loopY = sbTopY - 14;
+                        svg += `<polyline points="${prevSb.centerX + 18},${sbTopY} ${prevSb.centerX + 18},${loopY} ${nextSb.centerX},${loopY} ${nextSb.centerX},${sbTopY}" fill="none" stroke="#fbbf24" stroke-width="1.4" stroke-dasharray="4 2" marker-end="url(#cad-arrow)"/>`;
+                        svg += `<text x="${(prevSb.centerX + nextSb.centerX) / 2}" y="${loopY - 4}" fill="#fbbf24" font-size="8" text-anchor="middle">LOOP (${nextSb.board.loopLength || 6}m)</text>`;
+                    }
+                }
+            });
+
+            // 4. DRAW DASHED SWITCH BOARDS & INTERNAL SWITCH BLADES + POINT LABELS
+            allBoards.forEach((bObj, idx) => {
+                const { board, cols, x, width, centerX } = bObj;
+                const sbCode = `SB-${idx + 1} (${board.modules}M)`;
+
+                // Header text above Switch Board
+                svg += `<text x="${centerX}" y="${sbTopY - 22}" fill="#e2e8f0" font-size="9.5" font-weight="bold" text-anchor="middle">${escapeXml(board.name.toUpperCase())}</text>`;
+
+                // Dashed Switch Board Box
+                svg += `<rect x="${x}" y="${sbTopY}" width="${width}" height="${sbHeight}" fill="#0f172a" fill-opacity="0.65" stroke="#94a3b8" stroke-width="1.3" stroke-dasharray="8 4"/>`;
+                svg += `<text x="${x + 8}" y="${sbTopY + 13}" fill="#38bdf8" font-size="8.5" font-weight="bold">${escapeXml(sbCode)}</text>`;
+
+                // Internal Horizontal Bus inside SB
+                const innerMargin = 22;
+                const colStep = cols.length > 1 ? (width - innerMargin * 2) / (cols.length - 1) : 0;
+                const firstColX = cols.length > 1 ? x + innerMargin : centerX;
+                const lastColX = cols.length > 1 ? x + width - innerMargin : centerX;
+                const sbBusY = sbTopY + 26;
+
+                svg += `<line x1="${Math.min(centerX, firstColX)}" y1="${sbBusY}" x2="${Math.max(centerX, lastColX)}" y2="${sbBusY}" stroke="#e2e8f0" stroke-width="1.6"/>`;
+                svg += `<line x1="${centerX}" y1="${sbTopY}" x2="${centerX}" y2="${sbBusY}" stroke="#e2e8f0" stroke-width="1.5"/>`;
+
+                // Individual Switch Blades & Vertical Output Drops
+                cols.forEach((col, cIdx) => {
+                    const cx = firstColX + cIdx * colStep;
+                    const swTopY = sbBusY + 8;
+                    const swBotY = sbBusY + 28;
+
+                    // Top stem + open switch blade symbol
+                    svg += `<line x1="${cx}" y1="${sbBusY}" x2="${cx}" y2="${swTopY}" stroke="#e2e8f0" stroke-width="1.3"/>`;
+                    svg += `<circle cx="${cx}" cy="${swTopY}" r="1.6" fill="#e2e8f0"/>`;
+                    svg += `<line x1="${cx}" y1="${swBotY}" x2="${cx - 7}" y2="${swTopY + 2}" stroke="#f8fafc" stroke-width="1.5"/>`;
+                    svg += `<circle cx="${cx}" cy="${swBotY}" r="1.6" fill="#e2e8f0"/>`;
+
+                    // Outgoing vertical line with arrow to load label
+                    svg += `<line x1="${cx}" y1="${swBotY}" x2="${cx}" y2="${loadArrowTipY}" stroke="#e2e8f0" stroke-width="1.3" marker-end="url(#cad-arrow)"/>`;
+
+                    // Vertical Circuit Point Code (e.g. 1.1, 1.2)
+                    svg += `<text x="${cx - 4}" y="${sbBottomY + 16}" fill="#38bdf8" font-size="8" text-anchor="end" transform="rotate(-90 ${cx - 4} ${sbBottomY + 16})">${escapeXml(col.code)}</text>`;
+
+                    // Vertical Fixture/Socket Name below arrow
+                    const labelColor = col.isSocket ? '#fbbf24' : '#e2e8f0';
+                    svg += `<text x="${cx + 3}" y="${loadArrowTipY + 10}" fill="${labelColor}" font-size="8.5" font-weight="bold" text-anchor="end" transform="rotate(-90 ${cx + 3} ${loadArrowTipY + 10})">${escapeXml(col.label)}</text>`;
+                });
+            });
+
+            // Right-side Legend Note (matching reference drawing)
+            if (allBoards.length > 0) {
+                const lastB = allBoards[allBoards.length - 1];
+                const noteX = Math.min(canvasWidth - 135, lastB.x + lastB.width + 18);
+                svg += `<text x="${noteX}" y="${sbTopY + 34}" fill="#94a3b8" font-size="8.5" font-weight="bold">ON/OFF</text>`;
+                svg += `<text x="${noteX}" y="${sbTopY + 46}" fill="#94a3b8" font-size="8.5" font-weight="bold">CONTROL SW.</text>`;
+            }
+
+            svg += `</svg>`;
+            container.innerHTML = svg;
+        }
+
+        function downloadCadSVG() {
+            const svgEl = document.getElementById('cad-sld-svg');
+            if (!svgEl) {
+                showToast('Build an SLD first before downloading the CAD schematic.', 'error');
+                return;
+            }
+            const serializer = new XMLSerializer();
+            const svgSource = serializer.serializeToString(svgEl);
+            const blob = new Blob([svgSource], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'Residential_Electrical_SLD_Schematic.svg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('CAD SLD schematic downloaded as SVG!', 'success');
+        }
+
+        function renderSLDCanvas() {
+            const root = document.getElementById('sld-diagram-root');
+
+            if (!state.dbSelected) {
+                root.innerHTML = `
+                    <div class="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center max-w-lg mx-auto mt-8 shadow-sm">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3 text-xl">
+                            <i class="fa-solid fa-server"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900">Step 1: Select Your Distribution Board (DB)</h3>
+                        <p class="text-xs text-slate-500 mt-1 mb-4">Choose a DB Box from the Design Library on the left (or click below) to begin building your Single Line Diagram.</p>
+                        <div class="flex justify-center gap-2">
+                            <button onclick="selectDBBox(8)" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-semibold transition">8-Way DB</button>
+                            <button onclick="selectDBBox(12)" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition shadow-sm">12-Way DB</button>
+                            <button onclick="selectDBBox(16)" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-semibold transition">16-Way DB</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let totalWatts = 0;
+            state.mcbs.forEach(m => { totalWatts += getMcbElectricalStats(m).watts; });
+            const mainSizing = calculateMainIncomerSizing(totalWatts);
+
+            let html = `
+                <!-- MAIN DISTRIBUTION BOARD ENCLOSURE -->
+                <div class="bg-white border-2 border-slate-800 rounded-2xl shadow-md overflow-hidden mb-6">
+                    <div class="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-amber-500 text-slate-950 font-bold text-[10px] px-2 py-0.5 rounded uppercase">Main DB</span>
+                            <span class="text-sm font-bold">${state.dbWays}-Way SPN Double Door DB</span>
+                            <span class="text-xs font-mono-tech text-slate-400">(${state.mcbs.length}/${state.dbWays} Ways Used)</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs font-mono-tech">
+                            <div class="flex items-center gap-1 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-amber-300" title="Incoming Feeder Cable Length (Meter to DB)">
+                                <span>Incomer: ${mainSizing.mainWireSqMm}mm² (2C+${mainSizing.mainEarthSqMm}E)</span>
+                                <span class="text-slate-500">|</span>
+                                <label class="text-slate-300 text-[10px]">Len:</label>
+                                <input type="number" min="0" max="500" value="${state.mainCableLength ?? 10}"
+                                       onchange="updateMainCableLength(this.value)"
+                                       class="w-11 bg-slate-900 border border-slate-600 rounded px-1 py-0.2 text-center text-white text-[11px] font-bold">
+                                <span class="text-[10px] text-slate-400">m</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2: MAIN INCOMER SWITCHGEAR -->
+                    <div class="p-4 bg-slate-50 border-b border-slate-200">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Main Incomer Protection (Auto-Rated to Connected Load)</div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            ${state.hasDpMcb ? `
+                                <div class="flex items-center gap-2.5 bg-white border-2 border-rose-300 rounded-xl px-3 py-2 shadow-sm">
+                                    <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center">DP</div>
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-900">${mainSizing.mainMcbLabel}</div>
+                                        <div class="text-[10px] text-slate-500">Main Isolator • ${mainSizing.designCurrent.toFixed(1)}A Design</div>
+                                    </div>
+                                    <button onclick="removeIncomerGear('DP_MCB')" class="text-slate-400 hover:text-rose-600 ml-1" title="Remove DP MCB"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            ` : `
+                                <button onclick="addIncomerGear('DP_MCB')" class="border border-dashed border-rose-300 bg-rose-50/50 hover:bg-rose-100 text-rose-700 text-xs font-semibold px-3 py-2 rounded-xl transition">
+                                    + Add Main DP MCB
+                                </button>
+                            `}
+
+                            <i class="fa-solid fa-arrow-right text-slate-400 text-xs"></i>
+
+                            ${state.hasRccb ? `
+                                <div class="flex items-center gap-2.5 bg-white border-2 border-amber-300 rounded-xl px-3 py-2 shadow-sm">
+                                    <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 font-bold text-xs flex items-center justify-center">RCB</div>
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-900">${mainSizing.rccbLabel}</div>
+                                        <div class="text-[10px] text-slate-500">30mA Earth Leakage Protection</div>
+                                    </div>
+                                    <button onclick="removeIncomerGear('RCCB')" class="text-slate-400 hover:text-rose-600 ml-1" title="Remove RCCB"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                            ` : `
+                                <button onclick="addIncomerGear('RCCB')" class="border border-dashed border-amber-300 bg-amber-50/50 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-2 rounded-xl transition">
+                                    + Add 2-Pole RCCB
+                                </button>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: OUTGOING SP MCBs BAR -->
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Outgoing Single Pole (SP) Circuits (${state.mcbs.length})</span>
+                            <button onclick="addOutgoingMCB()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">
+                                + Insert SP MCB
+                            </button>
+                        </div>
+
+                        ${state.mcbs.length === 0 ? `
+                            <div class="text-center py-6 border border-dashed border-slate-300 rounded-xl bg-slate-50 text-xs text-slate-500">
+                                Click <strong>+ Insert SP MCB</strong> above (or from Step 3 in Design Library) to add outgoing circuits.
+                            </div>
+                        ` : `
+                            <div class="space-y-5">
+                                ${state.mcbs.map(mcb => {
+                                    const mStats = getMcbElectricalStats(mcb);
+                                    const isMcbSelected = selectedMcbId === mcb.id;
+                                    const mcbEarthTag = mStats.hasSocketOrEarthLoad ? `+${mStats.earthWireSqMm}E` : '2C P+N';
+                                    return `
+                                    <div ondragover="event.preventDefault()" ondrop="handleMcbDrop(event, '${mcb.id}')"
+                                         onclick="selectedMcbId='${mcb.id}'"
+                                         class="border-2 ${isMcbSelected ? 'border-emerald-500' : 'border-slate-200'} rounded-xl bg-slate-50/60 p-3.5 transition">
+                                        
+                                        <!-- SP MCB Header Row -->
+                                        <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-mono-tech font-bold text-xs">${mcb.name}</span>
+                                                <input type="text" value="${mcb.area || ''}" placeholder="Room / Area (e.g. Living Room)"
+                                                       onchange="updateMcbArea('${mcb.id}', this.value)"
+                                                       onclick="event.stopPropagation()"
+                                                       class="text-xs font-semibold text-slate-800 bg-white border border-slate-300 focus:border-emerald-500 focus:outline-none rounded-lg px-2.5 py-1 w-40 sm:w-48">
+                                                <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono-tech font-bold text-xs">${mStats.mcb}</span>
+                                                <span class="text-xs font-mono-tech text-slate-600">${mStats.watts} W • ${mStats.current.toFixed(2)} A</span>
+                                                <div class="flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-700 font-mono-tech font-semibold text-[11px] px-2 py-0.5 rounded" title="DB to Switchboard Cable Size & Run Length">
+                                                    <span>Cable: ${mStats.phaseWireSqMm}mm² (${mcbEarthTag})</span>
+                                                    <span class="text-blue-300">|</span>
+                                                    <label class="text-[10px]">Run:</label>
+                                                    <input type="number" min="0" max="300" value="${mcb.cableLength ?? 12}"
+                                                           onchange="updateMcbCableLength('${mcb.id}', this.value)"
+                                                           onclick="event.stopPropagation()"
+                                                           class="w-10 bg-white border border-blue-300 rounded px-1 text-center text-slate-900 font-bold">
+                                                    <span class="text-[10px]">m</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex items-center gap-1.5">
+                                                <!-- Quick buttons to attach 1, 2, or more Switch Boards to this MCB -->
+                                                <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 text-[10px]">
+                                                    <span class="text-slate-400 px-1 font-medium">+SB:</span>
+                                                    ${[12, 8, 6, 4, 3, 2].map(sz => `
+                                                        <button onclick="event.stopPropagation(); addBoardToMCB('${mcb.id}', ${sz})"
+                                                                class="px-1.5 py-0.5 rounded hover:bg-blue-600 hover:text-white font-bold text-slate-700 transition">${sz}M</button>
+                                                    `).join('')}
+                                                </div>
+                                                <button onclick="event.stopPropagation(); removeMCB('${mcb.id}')" class="text-slate-400 hover:text-rose-600 p-1" title="Delete SP MCB">
+                                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Connected Switch Boards (1, 2, or more under this SP MCB) -->
+                                        <div class="mt-3">
+                                            ${mcb.boards.length === 0 ? `
+                                                <div class="text-center py-4 border border-dashed border-blue-300 rounded-xl bg-blue-50/30 text-xs text-blue-700">
+                                                    Attach 1 or more Switch Boards using <strong>+SB: 12M / 8M / 6M...</strong> above or drag from Step 4.
+                                                </div>
+                                            ` : `
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    ${mcb.boards.map((board, bIdx) => {
+                                                        const bStats = getBoardElectricalStats(board);
+                                                        const isOver = bStats.usedModules > board.modules;
+                                                        const isBoardSelected = selectedBoardId === board.id;
+                                                        const loopEarthTag = bStats.hasSocketOrEarthLoad ? `+${bStats.earthWireSqMm}E` : '2C';
+                                                        return `
+                                                        <div ondragover="event.preventDefault()" ondrop="handleBoardDrop(event, '${mcb.id}', '${board.id}')"
+                                                             onclick="event.stopPropagation(); selectedMcbId='${mcb.id}'; selectedBoardId='${board.id}';"
+                                                             class="bg-white border-2 ${isOver ? 'border-rose-500' : (isBoardSelected ? 'border-blue-500' : 'border-slate-200')} rounded-xl p-3 shadow-sm">
+                                                            
+                                                            <div class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-100">
+                                                                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-white shrink-0">SB-${bIdx + 1}</span>
+                                                                    <input type="text" value="${board.name}" onchange="updateBoardName('${mcb.id}', '${board.id}', this.value)"
+                                                                           class="text-xs font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none truncate w-full">
+                                                                </div>
+                                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                                    <span class="text-[10px] font-mono-tech font-bold px-1.5 py-0.5 rounded ${isOver ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'}">
+                                                                        ${bStats.usedModules}/${board.modules}M
+                                                                    </span>
+                                                                    <button onclick="event.stopPropagation(); removeBoard('${mcb.id}', '${board.id}')" class="text-slate-400 hover:text-rose-600 text-xs" title="Remove Switch Board">
+                                                                        <i class="fa-solid fa-xmark"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            ${bIdx > 0 ? `
+                                                                <div class="mb-2 flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 text-[10px] text-amber-800">
+                                                                    <span><i class="fa-solid fa-link mr-1"></i>Looped from SB-${bIdx} (${bStats.phaseWireSqMm}mm² ${loopEarthTag})</span>
+                                                                    <div class="flex items-center gap-1 font-mono-tech">
+                                                                        <span>Loop:</span>
+                                                                        <input type="number" min="0" max="200" value="${board.loopLength ?? 6}"
+                                                                               onchange="updateBoardLoopLength('${mcb.id}', '${board.id}', this.value)"
+                                                                               onclick="event.stopPropagation()"
+                                                                               class="w-9 bg-white border border-amber-300 rounded px-1 text-center font-bold text-slate-900">
+                                                                        <span>m</span>
+                                                                    </div>
+                                                                </div>
+                                                            ` : ''}
+
+                                                            <!-- Items inside this Switch Board -->
+                                                            ${board.items.length === 0 ? `
+                                                                <div class="py-3 text-center text-[11px] text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                                                                    Click or drag Fans, Lights, AC, Geyser, or Switches here
+                                                                </div>
+                                                            ` : `
+                                                                <div class="space-y-1.5">
+                                                                    ${board.items.map(entry => {
+                                                                        const meta = entry.kind === 'accessory'
+                                                                            ? ACCESSORIES_CATALOG.find(a => a.id === entry.itemId)
+                                                                            : FIXTURES_CATALOG.find(f => f.id === entry.itemId);
+                                                                        if (!meta) return '';
+                                                                        const displayName = entry.kind === 'fixture' ? (meta.shortName || meta.name) : meta.name;
+                                                                        const modFootprint = getEntryModuleFootprint(entry);
+                                                                        const swCount = entry.switches !== undefined ? entry.switches : entry.qty;
+                                                                        const wireLen = entry.wireLength !== undefined ? entry.wireLength : 5;
+                                                                        const ptWire = entry.kind === 'fixture' ? getEntryOutputWireSizing(entry) : null;
+                                                                        return `
+                                                                        <div class="flex flex-wrap items-center justify-between gap-1 bg-slate-50 px-2 py-1.5 rounded-lg text-xs border border-slate-100">
+                                                                            <div class="flex items-center gap-1.5 min-w-0">
+                                                                                <i class="fa-solid ${meta.icon} text-slate-500 text-[11px] w-3.5 text-center"></i>
+                                                                                <span class="font-medium text-slate-800 truncate">${displayName}</span>
+                                                                                <span class="text-[9px] font-mono-tech text-slate-500 bg-white border border-slate-200 px-1 rounded">${modFootprint}M</span>
+                                                                            </div>
+                                                                            <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                                                                                ${entry.kind === 'fixture' ? `
+                                                                                    <div class="flex items-center gap-0.5 bg-emerald-50 border border-emerald-200 rounded px-1 py-0.5 text-[10px] text-emerald-800" title="Auto-calculated outgoing wire size & length per point">
+                                                                                        <span class="font-mono-tech font-bold text-emerald-700">${ptWire.phaseWireSqMm}mm²${ptWire.requiresEarthing ? '+E' : ' 2C'}</span>
+                                                                                        <span class="text-emerald-300">|</span>
+                                                                                        <input type="number" min="0" max="150" value="${wireLen}"
+                                                                                               onchange="updateBoardItemWireLength('${mcb.id}', '${board.id}', '${entry.uid}', this.value)"
+                                                                                               onclick="event.stopPropagation()"
+                                                                                               class="w-8 bg-white border border-emerald-300 rounded px-0.5 text-center font-mono-tech font-bold text-slate-900">
+                                                                                        <span>m</span>
+                                                                                    </div>
+                                                                                    <div class="flex items-center gap-0.5 bg-blue-50 border border-blue-200 rounded px-1 py-0.5 text-[10px] text-blue-700" title="Number of switches controlling these fixtures">
+                                                                                        <span class="font-semibold">Sw:</span>
+                                                                                        <button onclick="updateBoardItemSwitches('${mcb.id}', '${board.id}', '${entry.uid}', -1)" class="w-4 h-4 rounded hover:bg-blue-200 font-bold">-</button>
+                                                                                        <span class="font-mono-tech font-bold px-0.5">${swCount}</span>
+                                                                                        <button onclick="updateBoardItemSwitches('${mcb.id}', '${board.id}', '${entry.uid}', 1)" class="w-4 h-4 rounded hover:bg-blue-200 font-bold">+</button>
+                                                                                    </div>
+                                                                                ` : ''}
+                                                                                <div class="flex items-center gap-0.5" title="Fixture / Item Quantity">
+                                                                                    <button onclick="updateBoardItemQty('${mcb.id}', '${board.id}', '${entry.uid}', -1)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-rose-50 text-slate-600 font-bold">-</button>
+                                                                                    <span class="font-mono-tech font-bold w-5 text-center">${entry.qty}</span>
+                                                                                    <button onclick="updateBoardItemQty('${mcb.id}', '${board.id}', '${entry.uid}', 1)" class="w-5 h-5 rounded bg-white border border-slate-200 hover:bg-emerald-50 text-slate-600 font-bold">+</button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        `;
+                                                                    }).join('')}
+                                                                </div>
+                                                            `}
+                                                        </div>
+                                                        `;
+                                                    }).join('')}
+                                                </div>
+                                            `}
+                                        </div>
+                                    </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+
+            root.innerHTML = html;
+        }
+
+        // =========================================================================
+        // 8. TAB 2: FIXTURES & APPLIANCES CATALOG MANAGEMENT
+        // =========================================================================
+        let currentFixtureFilter = 'ALL';
+
+        function filterFixtures(category) {
+            currentFixtureFilter = category;
+            document.querySelectorAll('.fixture-filter-btn').forEach(btn => {
+                btn.classList.remove('bg-slate-900', 'text-white');
+                btn.classList.add('bg-white', 'border', 'border-slate-200', 'text-slate-700');
+            });
+            event.target.classList.remove('bg-white', 'border', 'border-slate-200', 'text-slate-700');
+            event.target.classList.add('bg-slate-900', 'text-white');
+            renderFixturesTable(category);
+        }
+
+        function renderFixturesTable(categoryFilter = 'ALL') {
+            const tbody = document.getElementById('fixtures-table-body');
+            const filtered = categoryFilter === 'ALL'
+                ? FIXTURES_CATALOG
+                : FIXTURES_CATALOG.filter(f => f.category === categoryFilter);
+
+            tbody.innerHTML = filtered.map(f => {
+                const amps = (f.watts / (VOLTAGE * f.pf)).toFixed(2);
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid ${f.icon}"></i>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-slate-900">${f.name}</div>
+                                    <div class="text-xs text-slate-500 max-w-xs truncate">${f.spec}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">${f.category}</span>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="flex items-center gap-1">
+                                <input type="number" value="${f.watts}" min="1" max="15000"
+                                       onchange="updateFixtureDefaultWatts('${f.id}', this.value)"
+                                       class="w-20 font-mono-tech font-semibold text-sm border border-slate-300 rounded-lg px-2 py-1 bg-white focus:border-blue-500 focus:outline-none">
+                                <span class="text-xs text-slate-500">W</span>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 font-mono-tech text-xs text-slate-700">${f.pf.toFixed(2)}</td>
+                        <td class="py-3.5 px-4 font-mono-tech font-semibold text-blue-700">${amps} A</td>
+                        <td class="py-3.5 px-4">
+                            <div class="text-xs font-semibold text-slate-800">${f.modules} Module${f.modules > 1 ? 's' : ''}</div>
+                            <div class="text-[11px] text-slate-500">${f.controlDesc}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <span class="font-mono-tech text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded">${f.defaultWire}</span>
+                            <span class="font-mono-tech text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded ml-1">${f.defaultMcb}</span>
+                        </td>
+                        <td class="py-3.5 px-4 text-right">
+                            <button onclick="quickAddItem('fixture', '${f.id}'); switchTab('sld');"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">
+                                + Add to SLD
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateFixtureDefaultWatts(fixtureId, newWatts) {
+            const fix = FIXTURES_CATALOG.find(f => f.id === fixtureId);
+            if (!fix) return;
+            const parsed = Math.max(1, Number(newWatts) || fix.watts);
+            fix.watts = parsed;
+            const sizing = calculateCircuitSizing(parsed, fix.pf, parsed >= 1000, fix.modules >= 3);
+            fix.defaultWire = `${sizing.phaseWireSqMm} sq.mm`;
+            fix.defaultMcb = sizing.mcb;
+            renderFixturesTable(currentFixtureFilter);
+            recalculateAll();
+            showToast(`Updated ${fix.name} rating to ${parsed}W.`, 'info');
+        }
+
+        // =========================================================================
+        // 9. TAB 3: BOQ GENERATOR (QTY & SPECS ONLY - NO RATES)
+        // =========================================================================
+        function generateBOQItems() {
+            const boqList = [];
+
+            let totalWatts = 0;
+            const mcbCounts = {};
+            const boardCounts = {};
+            const accessoryCounts = {};
+            const fixtureCounts = {};
+            const cableMeters = {};
+
+            state.mcbs.forEach(mcb => {
+                const mcbStats = getMcbElectricalStats(mcb);
+                totalWatts += mcbStats.watts;
+
+                // 1. Outgoing SP MCB count
+                mcbCounts[mcbStats.mcb] = (mcbCounts[mcbStats.mcb] || 0) + 1;
+
+                // 2. Feeder wire from DB to 1st Switch Board (user-entered run length in meters)
+                const feederRun = Number(mcb.cableLength ?? 12);
+                if (feederRun > 0) {
+                    cableMeters[mcbStats.phaseWireSqMm] = (cableMeters[mcbStats.phaseWireSqMm] || 0) + (feederRun * 2); // Phase + Neutral
+                    if (mcbStats.hasSocketOrEarthLoad) {
+                        cableMeters[mcbStats.earthWireSqMm] = (cableMeters[mcbStats.earthWireSqMm] || 0) + feederRun;    // Earth only when circuit has socket/earth load
+                    }
+                }
+
+                // 3. Each Switch Board connected to this SP MCB (1, 2, or more)
+                mcb.boards.forEach((board, bIdx) => {
+                    boardCounts[board.modules] = (boardCounts[board.modules] || 0) + 1;
+                    const bStats = getBoardElectricalStats(board);
+
+                    // Loop wire between 2nd/3rd Switch Boards on same MCB
+                    const loopLen = Number(board.loopLength ?? 6);
+                    if (bIdx > 0 && loopLen > 0) {
+                        cableMeters[bStats.phaseWireSqMm] = (cableMeters[bStats.phaseWireSqMm] || 0) + (loopLen * 2);
+                        if (bStats.hasSocketOrEarthLoad) {
+                            cableMeters[bStats.earthWireSqMm] = (cableMeters[bStats.earthWireSqMm] || 0) + loopLen;
+                        }
+                    }
+
+                    board.items.forEach(entry => {
+                        if (entry.kind === 'accessory') {
+                            accessoryCounts[entry.itemId] = (accessoryCounts[entry.itemId] || 0) + entry.qty;
+                        } else {
+                            fixtureCounts[entry.itemId] = (fixtureCounts[entry.itemId] || 0) + entry.qty;
+                            const swPoints = entry.switches !== undefined ? entry.switches : entry.qty;
+                            const ptWireLen = Number(entry.wireLength !== undefined ? entry.wireLength : 5);
+                            const fixMeta = FIXTURES_CATALOG.find(f => f.id === entry.itemId);
+
+                            // Auto-add required switchboard accessories for fixtures
+                            if (fixMeta) {
+                                const ctrlMode = fixMeta.controlMode || (
+                                    ['fan_ceiling', 'fan_900', 'fan_600'].includes(fixMeta.id) ? '2_reg' :
+                                    ['geyser_water', 'washing_machine', 'refrigerator', 'microwave_oven'].includes(fixMeta.id) ? '3_16a' :
+                                    fixMeta.id === 'tv_unit' ? '3_6a' :
+                                    fixMeta.modules === 0 ? '0_direct' : '1_6a'
+                                );
+                                if (ctrlMode === '2_reg') {
+                                    accessoryCounts['sw_6a'] = (accessoryCounts['sw_6a'] || 0) + swPoints;
+                                    accessoryCounts['reg_fan'] = (accessoryCounts['reg_fan'] || 0) + swPoints;
+                                } else if (ctrlMode === '3_16a') {
+                                    accessoryCounts['sw_16a'] = (accessoryCounts['sw_16a'] || 0) + swPoints;
+                                    accessoryCounts['skt_16a'] = (accessoryCounts['skt_16a'] || 0) + swPoints;
+                                } else if (ctrlMode === '3_6a') {
+                                    accessoryCounts['sw_6a'] = (accessoryCounts['sw_6a'] || 0) + swPoints;
+                                    accessoryCounts['skt_6a'] = (accessoryCounts['skt_6a'] || 0) + swPoints;
+                                } else if (ctrlMode === '1_6a') {
+                                    accessoryCounts['sw_6a'] = (accessoryCounts['sw_6a'] || 0) + swPoints;
+                                }
+                            }
+
+                            // Output point wire from Switch Board to fixture
+                            if (ptWireLen > 0 && fixMeta) {
+                                const totalPointRun = ptWireLen * entry.qty;
+                                const ptSizing = getEntryOutputWireSizing(entry);
+                                cableMeters[ptSizing.phaseWireSqMm] = (cableMeters[ptSizing.phaseWireSqMm] || 0) + (totalPointRun * 2);
+                                if (ptSizing.requiresEarthing) {
+                                    cableMeters[ptSizing.earthWireSqMm] = (cableMeters[ptSizing.earthWireSqMm] || 0) + totalPointRun;
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+
+            const mainSizing = calculateMainIncomerSizing(totalWatts);
+
+            // A. DISTRIBUTION BOARD & MAIN INCOMER SWITCHGEAR
+            if (state.dbSelected) {
+                boqList.push({
+                    category: 'Distribution Board',
+                    item: `SPN Double Door Distribution Board (${state.dbWays}-Way)`,
+                    spec: `IP43 Metal Enclosure, 100A Insulated Copper Busbar, Neutral Link & Earth Bar (IS 8623)`,
+                    unit: 'Nos',
+                    qty: 1
+                });
+
+                if (state.hasDpMcb) {
+                    boqList.push({
+                        category: 'Main Switchgear',
+                        item: `${mainSizing.mainMcbLabel} Main Isolator MCB`,
+                        spec: `Double Pole (2P), 240V AC, 10kA Breaking Capacity, C-Curve (IS/IEC 60898-1)`,
+                        unit: 'Nos',
+                        qty: 1
+                    });
+                }
+
+                if (state.hasRccb) {
+                    boqList.push({
+                        category: 'Main Switchgear',
+                        item: `2-Pole RCCB (${mainSizing.rccbLabel})`,
+                        spec: `Residual Current Circuit Breaker, 240V AC, ${state.rcbSensitivity} Earth Leakage Sensitivity (IS 12640)`,
+                        unit: 'Nos',
+                        qty: 1
+                    });
+                }
+
+                const mainRun = Number(state.mainCableLength ?? 10);
+                if (mainRun > 0) {
+                    cableMeters[mainSizing.mainWireSqMm] = (cableMeters[mainSizing.mainWireSqMm] || 0) + (mainRun * 2);
+                    cableMeters[mainSizing.mainEarthSqMm] = (cableMeters[mainSizing.mainEarthSqMm] || 0) + mainRun;
+                }
+            }
+
+            // B. OUTGOING SP MCBs
+            Object.entries(mcbCounts).sort().forEach(([mcbLabel, qty]) => {
+                boqList.push({
+                    category: 'Circuit Switchgear',
+                    item: `${mcbLabel} Miniature Circuit Breaker`,
+                    spec: `Single Pole (1P), 240V AC, 10kA Breaking Capacity, B/C-Curve DIN-Rail Mount`,
+                    unit: 'Nos',
+                    qty
+                });
+            });
+
+            // C. MODULAR SWITCH BOARDS (1M - 12M)
+            Object.entries(boardCounts).sort((a, b) => Number(b[0]) - Number(a[0])).forEach(([mod, qty]) => {
+                const boardMeta = BOARD_SIZES.find(b => b.modules === Number(mod));
+                boqList.push({
+                    category: 'Modular Switch Boards',
+                    item: `${mod}-Module Concealed Box & Front Plate`,
+                    spec: boardMeta ? boardMeta.boxSpec : `${mod}M GI Flush Box + Polycarbonate Cover Frame`,
+                    unit: 'Sets',
+                    qty
+                });
+            });
+
+            // D. SWITCHES, SOCKETS & REGULATORS
+            Object.entries(accessoryCounts).forEach(([accId, qty]) => {
+                const meta = ACCESSORIES_CATALOG.find(a => a.id === accId);
+                if (meta && qty > 0) {
+                    boqList.push({
+                        category: 'Switches & Accessories',
+                        item: meta.name,
+                        spec: meta.spec,
+                        unit: 'Nos',
+                        qty
+                    });
+                }
+            });
+
+            // E. FRLS COPPER CABLES & WIRES
+            Object.entries(cableMeters).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])).forEach(([sqMm, meters]) => {
+                boqList.push({
+                    category: 'Cables & Wires',
+                    item: `${sqMm} sq.mm Single Core FRLS Copper Wire`,
+                    spec: `1100V Grade, Multi-Strand Flexible Electrolytic Copper, FRLS PVC Insulated (IS 694)`,
+                    unit: 'Meters',
+                    qty: Math.ceil(meters)
+                });
+            });
+
+            // F. FIXTURES & APPLIANCES
+            Object.entries(fixtureCounts).forEach(([fixId, qty]) => {
+                const meta = FIXTURES_CATALOG.find(f => f.id === fixId);
+                if (meta && qty > 0) {
+                    boqList.push({
+                        category: 'Fixtures & Appliances',
+                        item: `${meta.name} (${meta.watts}W)`,
+                        spec: meta.spec,
+                        unit: 'Nos',
+                        qty
+                    });
+                }
+            });
+
+            return { boqList, totalWatts, mainSizing, mcbCounts, boardCounts, accessoryCounts, cableMeters };
+        }
+
+        function renderBOQ() {
+            const { boqList, totalWatts, mainSizing, mcbCounts, boardCounts, accessoryCounts, cableMeters } = generateBOQItems();
+
+            document.getElementById('boq-badge').textContent = boqList.length;
+            document.getElementById('boq-kpi-load').textContent = `${totalWatts.toLocaleString()} W`;
+            document.getElementById('boq-kpi-amps').textContent = `${mainSizing.designCurrent.toFixed(2)} A Diversified @ 230V`;
+
+            const incomerCount = (state.hasDpMcb ? 1 : 0) + (state.hasRccb ? 1 : 0);
+            const totalSwitchgear = incomerCount + Object.values(mcbCounts).reduce((a, b) => a + b, 0);
+            document.getElementById('boq-kpi-switchgear').textContent = `${totalSwitchgear} Nos`;
+
+            const totalBoards = Object.values(boardCounts).reduce((a, b) => a + b, 0);
+            const totalAcc = Object.values(accessoryCounts).reduce((a, b) => a + b, 0);
+            document.getElementById('boq-kpi-boards').textContent = `${totalBoards} Boards`;
+            document.getElementById('boq-kpi-accessories').textContent = `${totalAcc} Switches / Sockets / Reg.`;
+
+            const totalCableMeters = Object.values(cableMeters).reduce((a, b) => a + b, 0);
+            document.getElementById('boq-kpi-cable').textContent = `${Math.ceil(totalCableMeters)} m`;
+
+            const tbody = document.getElementById('boq-table-body');
+            if (boqList.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-slate-400">
+                            <i class="fa-solid fa-clipboard-question text-3xl mb-2 block"></i>
+                            No components added in SLD yet. Start from Step 1 in the SLD tab to build your diagram.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = boqList.map((row, idx) => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-3 px-4 font-mono-tech text-xs text-slate-500">${idx + 1}</td>
+                    <td class="py-3 px-4">
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">${row.category}</span>
+                    </td>
+                    <td class="py-3 px-4 font-semibold text-slate-900">${row.item}</td>
+                    <td class="py-3 px-4 text-xs text-slate-600">${row.spec}</td>
+                    <td class="py-3 px-4 text-center text-xs font-medium text-slate-500">${row.unit}</td>
+                    <td class="py-3 px-4 text-right font-mono-tech font-bold text-base text-blue-700">${row.qty}</td>
+                </tr>
+            `).join('');
+        }
+
+        // =========================================================================
+        // 10. EXPORT, CUSTOM APPLIANCE MODAL & DEMO PRESETS
+        // =========================================================================
+        function openCustomFixtureModal() {
+            document.getElementById('custom-fixture-modal').classList.remove('hidden');
+        }
+
+        function closeCustomFixtureModal() {
+            document.getElementById('custom-fixture-modal').classList.add('hidden');
+        }
+
+        function saveCustomFixture(event) {
+            event.preventDefault();
+            const name = document.getElementById('cust-name').value.trim();
+            const category = document.getElementById('cust-category').value;
+            const watts = Number(document.getElementById('cust-watts').value);
+            const pf = Number(document.getElementById('cust-pf').value);
+            const controlMode = document.getElementById('cust-modules').value;
+
+            const moduleMap = {
+                '1_6a':     { modules: 1, controlDesc: '6A 1-Way Switch (1M)' },
+                '2_reg':    { modules: 2, controlDesc: '6A Switch (1M) + Step Regulator (1M)' },
+                '3_6a':     { modules: 3, controlDesc: '6A Switch (1M) + 6A Socket (2M)' },
+                '3_16a':    { modules: 3, controlDesc: '16A Switch (1M) + 16A Socket (2M)' },
+                '0_direct': { modules: 0, controlDesc: 'Direct MCB / Starter (0M on SB)' }
+            };
+
+            const chosenCtrl = moduleMap[controlMode] || moduleMap['3_16a'];
+            const sizing = calculateCircuitSizing(watts, pf, watts >= 1000 || controlMode === '3_16a', controlMode !== '1_6a' && controlMode !== '2_reg');
+
+            FIXTURES_CATALOG.push({
+                id: 'cust_' + Date.now(),
+                shortName: name,
+                name,
+                category,
+                watts,
+                pf,
+                modules: chosenCtrl.modules,
+                controlMode,
+                controlDesc: chosenCtrl.controlDesc,
+                defaultWire: `${sizing.phaseWireSqMm} sq.mm`,
+                defaultMcb: sizing.mcb,
+                icon: 'fa-plug-circle-plus',
+                spec: `Custom Residential Load, ${watts}W, 230V AC, PF ${pf}`
+            });
+
+            renderPalettes();
+            renderFixturesTable(currentFixtureFilter);
+            closeCustomFixtureModal();
+            saveAppState();
+            showToast(`Added "${name}" (${watts}W) to Fixtures Library.`, 'success');
+        }
+
+        function exportBOQCSV() {
+            const { boqList } = generateBOQItems();
+            if (boqList.length === 0) {
+                showToast('BOQ is empty. Add items in SLD first.', 'error');
+                return;
+            }
+            const headers = ['Sr No', 'Category', 'Item Description', 'Technical Specification', 'Unit', 'Quantity'];
+            const rows = boqList.map((r, i) => [
+                i + 1,
+                `"${r.category}"`,
+                `"${r.item}"`,
+                `"${r.spec}"`,
+                r.unit,
+                r.qty
+            ]);
+            const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'Residential_Electrical_BOQ.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('BOQ exported as CSV!', 'success');
+        }
+
+        function copyBOQToClipboard() {
+            const { boqList } = generateBOQItems();
+            if (boqList.length === 0) {
+                showToast('BOQ is empty. Add items in SLD first.', 'error');
+                return;
+            }
+            const text = boqList.map((r, i) => `${i + 1}. [${r.category}] ${r.item} | Spec: ${r.spec} | Qty: ${r.qty} ${r.unit}`).join('\n');
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = text;
+            document.body.appendChild(tempTextarea);
+            tempTextarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextarea);
+            showToast('BOQ copied to clipboard!', 'success');
+        }
+
+        function loadSampleProject() {
+            state.dbSelected = true;
+            state.dbWays = 12;
+            state.mainCableLength = 10;
+            state.hasDpMcb = true;
+            state.hasRccb = true;
+            state.mcbs = [];
+
+            // MCB-1 with TWO connected Switch Boards (12M Living Room + 4M Bedside)
+            const m1 = addOutgoingMCB();
+            m1.area = 'Living Room';
+            m1.cableLength = 14;
+            const b1 = addBoardToMCB(m1.id, 12, 'Living Room Main SB (12M)');
+            b1.items = [
+                { uid: 's1', kind: 'fixture', itemId: 'fan_ceiling', qty: 2, switches: 2, wireLength: 6 },
+                { uid: 's2', kind: 'fixture', itemId: 'light_ceiling', qty: 6, switches: 2, wireLength: 5 },
+                { uid: 's3', kind: 'fixture', itemId: 'light_rope', qty: 1, switches: 1, wireLength: 8 }
+            ];
+            const b1_sub = addBoardToMCB(m1.id, 4, 'Living TV / Sofa SB (4M)');
+            b1_sub.loopLength = 5;
+            b1_sub.items = [
+                { uid: 's4', kind: 'fixture', itemId: 'tv_unit', qty: 1, switches: 1, wireLength: 2 },
+                { uid: 's5', kind: 'accessory', itemId: 'usb_chg', qty: 1 }
+            ];
+
+            // MCB-2: Dedicated 1.5T Split AC
+            const m2 = addOutgoingMCB();
+            m2.area = 'Master Bedroom AC';
+            m2.cableLength = 18;
+            const b2 = addBoardToMCB(m2.id, 2, 'Master Bedroom Split AC (2M)');
+            b2.items = [
+                { uid: 's6', kind: 'fixture', itemId: 'ac_split', qty: 1, switches: 1, wireLength: 4 }
+            ];
+
+            // MCB-3: Dedicated 2000W Geyser
+            const m3 = addOutgoingMCB();
+            m3.area = 'Bathroom Geyser';
+            m3.cableLength = 16;
+            const b3 = addBoardToMCB(m3.id, 3, 'Bathroom Geyser Point (3M)');
+            b3.items = [
+                { uid: 's7', kind: 'fixture', itemId: 'geyser_water', qty: 1, switches: 1, wireLength: 3 }
+            ];
+
+            recalculateAll();
+            showToast('Loaded Sample 2BHK SLD (includes 2 Switch Boards looped on MCB-1).', 'success');
+        }
+
+        function clearSLD() {
+            state = {
+                dbSelected: false,
+                dbWays: 12,
+                mainCableLength: 10,
+                hasDpMcb: false,
+                hasRccb: false,
+                rcbSensitivity: '30mA',
+                mcbs: []
+            };
+            selectedMcbId = null;
+            selectedBoardId = null;
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (err) {}
+            recalculateAll();
+            showToast('SLD reset. Start from Step 1 by selecting a DB Box.', 'info');
+        }
+
+        // =========================================================================
+        // 11. TAB SWITCHING & TOAST NOTIFICATIONS
+        // =========================================================================
+        function switchTab(tabName) {
+            ['sld', 'cad', 'fixtures', 'boq'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.add('hidden');
+                const btn = document.getElementById(`tab-btn-${t}`);
+                btn.classList.remove('bg-blue-600', 'text-white', 'shadow');
+                btn.classList.add('text-slate-300');
+            });
+
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            activeBtn.classList.remove('text-slate-300');
+            activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow');
+
+            if (tabName === 'cad') renderCadSchematic();
+            if (tabName === 'boq') renderBOQ();
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-900 border-emerald-700 text-emerald-100',
+                error: 'bg-rose-900 border-rose-700 text-rose-100',
+                info: 'bg-slate-900 border-slate-700 text-slate-100'
+            };
+            toast.className = `pointer-events-auto px-4 py-2.5 rounded-xl border shadow-lg text-xs font-medium flex items-center gap-2 transition-all transform translate-y-0 ${colors[type] || colors.info}`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-amber-400"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
